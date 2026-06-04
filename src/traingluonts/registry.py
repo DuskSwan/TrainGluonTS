@@ -74,4 +74,7 @@ def load_model(model_path_or_id: str | Path, artifact_root: Path | None = None):
     if artifact_root is not None and not value.exists():
         value = artifact_root / value / "predictor"
 
+    if not value.exists():
+        raise ModelRegistryError(f"model path does not exist: {value}")
+
     return PyTorchPredictor.deserialize(value)

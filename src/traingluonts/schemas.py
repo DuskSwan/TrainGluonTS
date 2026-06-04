@@ -190,3 +190,57 @@ class TrainingResult(BaseModel):
     model_path: str
     metadata_path: str
     metrics: dict[str, float] | None = None
+
+
+class PredictionSettings(BaseModel):
+    """Prediction-time settings."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    num_samples: int = Field(default=100, gt=0)
+    quantiles: list[float] = Field(default_factory=lambda: [0.1, 0.5, 0.9])
+
+    @field_validator("quantiles")
+    @classmethod
+    def quantiles_must_be_probabilities(cls, value: list[float]) -> list[float]:
+        if not value:
+            raise ValueError("quantiles must contain at least one value")
+        if any(item <= 0.0 or item >= 1.0 for item in value):
+            raise ValueError("quantiles must be between 0 and 1")
+        return value
+
+
+class PredictionRequest(BaseModel):
+    """Top-level prediction request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    dataset: DatasetSpec
+    model_id: str | None = None
+    model_path: Path | None = None
+    artifact_root: Path = Path("artifacts/models")
+    freq: str | None = None
+    prediction: PredictionSettings = Field(default_factory=PredictionSettings)
+
+    @model_validator(mode="after")
+    def require_model_reference(self) -> PredictionRequest:
+        if self.model_id is None and self.model_path is None:
+            raise ValueError("either model_id or model_path must be provided")
+        return self
+
+
+class ForecastResult(BaseModel):
+    """Forecast payload for one time series."""
+
+    item_id: str | None = None
+    start_date: str
+    mean: list[float]
+    quantiles: dict[str, list[float]]
+
+
+class PredictionResult(BaseModel):
+    """Structured result returned by predict."""
+
+    model_id: str | None = None
+    model_path: str
+    forecasts: list[ForecastResult]

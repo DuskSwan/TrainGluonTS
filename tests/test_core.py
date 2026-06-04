@@ -12,9 +12,14 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from traingluonts.dataset import split_for_evaluation, to_list_dataset
-from traingluonts.errors import TrainingRequestError
+from traingluonts.errors import (
+    ModelRegistryError,
+    PredictionRequestError,
+    TrainingRequestError,
+)
 from traingluonts.estimators import create_estimator
-from traingluonts.schemas import TrainingRequest
+from traingluonts.inference import predict, predict_with_model
+from traingluonts.schemas import PredictionRequest, TrainingRequest
 from traingluonts.testing import generate_training_request
 from traingluonts.trainer import train_model
 
@@ -56,6 +61,24 @@ class CoreTests(unittest.TestCase):
         with self.assertRaises(TrainingRequestError):
             train_model(request)
 
+    def test_prediction_request_requires_model_reference(self) -> None:
+        request = generate_training_request()
+
+        with self.assertRaises(PredictionRequestError):
+            predict({"dataset": request["dataset"]})
+
+    def test_prediction_missing_model_path_raises_module_error(self) -> None:
+        request = generate_training_request()
+
+        with self.assertRaises(ModelRegistryError):
+            predict(
+                {
+                    "model_path": "artifacts/missing_model/predictor",
+                    "freq": "D",
+                    "dataset": request["dataset"],
+                }
+            )
+
     def test_tiny_training_run(self) -> None:
         tmp_root = ROOT / "artifacts" / "test_runs"
         tmp_root.mkdir(parents=True, exist_ok=True)
@@ -81,6 +104,86 @@ class CoreTests(unittest.TestCase):
         self.assertTrue(Path(result.metadata_path).exists())
         self.assertIsNotNone(result.metrics)
         self.assertIn("RMSE", result.metrics or {})
+
+    def test_train_then_predict_by_model_id(self) -> None:
+        tmp_root = ROOT / "artifacts" / "test_runs"
+        tmp_root.mkdir(parents=True, exist_ok=True)
+        tmp_dir = tmp_root / f"core_predict_{uuid4().hex[:8]}"
+        tmp_dir.mkdir(parents=True)
+        self.addCleanup(lambda: shutil.rmtree(tmp_dir, ignore_errors=True))
+
+        request = generate_training_request(
+            algorithm="simple_feedforward",
+            artifact_root=str(tmp_dir),
+            num_series=2,
+            length=30,
+            prediction_length=3,
+            context_length=6,
+            max_epochs=1,
+            num_batches_per_epoch=1,
+            batch_size=2,
+        )
+        training_result = train_model(request)
+
+        prediction_result = predict(
+            {
+                "model_id": training_result.model_id,
+                "artifact_root": str(tmp_dir),
+                "dataset": request["dataset"],
+                "prediction": {
+                    "num_samples": 20,
+                    "quantiles": [0.1, 0.5, 0.9],
+                },
+            }
+        )
+
+        self.assertEqual(prediction_result.model_id, training_result.model_id)
+        self.assertTrue(Path(prediction_result.model_path).exists())
+        self.assertEqual(len(prediction_result.forecasts), 2)
+        self.assertEqual(len(prediction_result.forecasts[0].mean), 3)
+        self.assertIn("0.5", prediction_result.forecasts[0].quantiles)
+
+    def test_predict_by_model_path(self) -> None:
+        tmp_root = ROOT / "artifacts" / "test_runs"
+        tmp_root.mkdir(parents=True, exist_ok=True)
+        tmp_dir = tmp_root / f"core_predict_path_{uuid4().hex[:8]}"
+        tmp_dir.mkdir(parents=True)
+        self.addCleanup(lambda: shutil.rmtree(tmp_dir, ignore_errors=True))
+
+        request = generate_training_request(
+            algorithm="simple_feedforward",
+            artifact_root=str(tmp_dir),
+            num_series=1,
+            length=30,
+            prediction_length=3,
+            context_length=6,
+            max_epochs=1,
+            num_batches_per_epoch=1,
+            batch_size=1,
+        )
+        training_result = train_model(request)
+
+        prediction_request = PredictionRequest.model_validate(
+            {
+                "model_path": training_result.model_path,
+                "dataset": request["dataset"],
+            }
+        )
+        prediction_result = predict(prediction_request)
+
+        self.assertIsNone(prediction_result.model_id)
+        self.assertEqual(len(prediction_result.forecasts), 1)
+        self.assertEqual(len(prediction_result.forecasts[0].mean), 3)
+
+        helper_result = predict_with_model(
+            training_result.model_path,
+            request["dataset"],
+            freq="D",
+            num_samples=20,
+            quantiles=[0.5],
+        )
+        self.assertEqual(len(helper_result.forecasts), 1)
+        self.assertIn("0.5", helper_result.forecasts[0].quantiles)
 
 
 if __name__ == "__main__":

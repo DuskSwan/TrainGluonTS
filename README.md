@@ -1,24 +1,29 @@
 # TrainGluonTS
 
-TrainGluonTS 是一个用于 **训练和推理** GluonTS 时间序列预测模型的 Python 模块。当前版本已经实现训练能力：接收结构化训练参数，完成数据转换、模型训练、评估和本地保存，最后返回模型路径、元信息和评估指标。
+TrainGluonTS 是一个用于 **训练和推理** GluonTS 时间序列预测模型的 Python 模块。当前版本已经实现训练和推理能力：接收结构化训练参数，完成数据转换、模型训练、评估和本地保存；也可以加载本地 predictor，对新的时间序列执行预测。
 
-推理能力尚未实现。后续目标是加载本地已保存的 predictor，接收待预测时间序列，输出均值预测和分位数预测结果。
+推理接口会输出每条序列的预测开始时间、均值预测和分位数预测结果。
 
 本仓库后续会作为模块并入更大的 Python 仓库，因此主要集成方式是 **直接调用 Python 函数**，不是创建 HTTP/FastAPI 服务。
 
 ## 当前能力检查
 
-现有工具已经可以满足第一版训练模型的需求：
+现有工具已经可以满足第一版训练和推理需求：
 
 - [x] 支持直接 Python 函数调用，不依赖 HTTP/FastAPI。
 - [x] 支持结构化训练请求校验。
+- [x] 支持结构化推理请求校验。
 - [x] 支持合成测试数据生成。
 - [x] 支持 GluonTS `ListDataset` 数据转换。
 - [x] 支持 `deepar` 和 `simple_feedforward` 两种模型。
 - [x] 支持两种模型各自独立的超参数。
 - [x] 支持训练集/测试集拆分和 holdout 评估。
 - [x] 支持保存 predictor、训练请求、评估指标和 metadata。
+- [x] 支持通过 `model_id + artifact_root` 推理。
+- [x] 支持通过 `model_path` 推理。
+- [x] 支持推理均值和分位数输出。
 - [x] 支持最小训练流程测试。
+- [x] 支持训练后加载并推理的端到端测试。
 
 当前验证命令：
 
@@ -87,7 +92,7 @@ TrainGluonTS/
       dataset.py          # 前端或大仓传入的数据 -> GluonTS ListDataset
       estimators.py       # 根据算法名和参数创建 GluonTS estimator
       trainer.py          # 训练、评估、保存的核心流程
-      inference.py        # 计划：加载模型并执行推理
+      inference.py        # 加载模型并执行推理
       registry.py         # 本地模型路径、metadata 管理
       errors.py           # 模块内专用异常
       testing.py          # 测试和示例使用的合成数据生成工具
@@ -140,18 +145,18 @@ def delete_model(model_id: str) -> None:
     ...
 ```
 
-这些辅助函数不是第一版训练流程的必要条件，可以等大仓接入需求明确后再实现。
+这些辅助函数不是第一版训练流程的必要条件，可以等大仓接入需求明确后再继续扩展。
 
-### 推理接口，规划中
+### 推理接口，已实现
 
-推理能力尚未实现，计划提供如下入口：
+当前推理入口：
 
 ```python
 def predict(request: PredictionRequest | dict) -> PredictionResult:
     ...
 ```
 
-该函数计划负责：
+该函数负责：
 
 1. 校验并归一化推理请求。
 2. 根据 `model_id` 或 `model_path` 加载本地 predictor。
@@ -159,7 +164,7 @@ def predict(request: PredictionRequest | dict) -> PredictionResult:
 4. 执行预测。
 5. 输出每条序列的预测开始时间、均值预测和分位数预测。
 
-计划中的辅助函数：
+当前辅助函数：
 
 ```python
 def load_predictor(model_id: str, artifact_root: str | Path) -> Predictor:
@@ -286,9 +291,9 @@ def predict_with_model(model_path: str | Path, dataset: DatasetSpec) -> Predicti
 
 如果训练失败，模块应该抛出专用异常，并携带足够上下文，方便大仓记录日志和向上层展示错误。
 
-## 推理请求格式，规划中
+## 推理请求格式
 
-计划中的推理请求结构：
+推荐推理请求结构：
 
 ```json
 {
@@ -310,11 +315,12 @@ def predict_with_model(model_path: str | Path, dataset: DatasetSpec) -> Predicti
 }
 ```
 
-也可以支持直接传入 `model_path`：
+也可以直接传入 `model_path`。如果 predictor 目录旁边存在训练时保存的 `request.json`，模块会自动读取其中的 `freq`；否则需要在请求中显式传入 `freq`：
 
 ```json
 {
   "model_path": "artifacts/models/model_20260603_172500_ab12cd/predictor",
+  "freq": "D",
   "dataset": {
     "series": [
       {
@@ -327,9 +333,9 @@ def predict_with_model(model_path: str | Path, dataset: DatasetSpec) -> Predicti
 }
 ```
 
-## 推理结果格式，规划中
+## 推理结果格式
 
-计划中的推理返回结构：
+推理返回结构：
 
 ```json
 {
@@ -370,20 +376,20 @@ def predict_with_model(model_path: str | Path, dataset: DatasetSpec) -> Predicti
 - [x] 添加参数校验、数据集转换、最小训练流程的测试。
 - [x] 保持本模块不引入 HTTP/FastAPI，除非大仓后续明确需要适配层。
 
-## 推理实现自查清单，规划中
+## 推理实现自查清单
 
-- [ ] 创建 `src/traingluonts/inference.py`。
-- [ ] 定义 `PredictionRequest`、`PredictionSettings` 和 `PredictionResult`。
-- [ ] 支持通过 `model_id + artifact_root` 定位 predictor。
-- [ ] 支持通过 `model_path` 直接加载 predictor。
-- [ ] 复用 `dataset.py` 中的数据转换逻辑。
-- [ ] 支持设置 `num_samples` 和 `quantiles`。
-- [ ] 输出每条序列的 `item_id`、`start_date`、`mean` 和分位数。
-- [ ] 对不存在的模型路径抛出模块专用异常。
-- [ ] 添加 `examples/predict_via_module.py`。
-- [ ] 添加推理请求校验测试。
-- [ ] 添加“训练后立即加载并推理”的端到端测试。
-- [ ] 在 README 中把推理状态从规划更新为已实现。
+- [x] 创建 `src/traingluonts/inference.py`。
+- [x] 定义 `PredictionRequest`、`PredictionSettings` 和 `PredictionResult`。
+- [x] 支持通过 `model_id + artifact_root` 定位 predictor。
+- [x] 支持通过 `model_path` 直接加载 predictor。
+- [x] 复用 `dataset.py` 中的数据转换逻辑。
+- [x] 支持设置 `num_samples` 和 `quantiles`。
+- [x] 输出每条序列的 `item_id`、`start_date`、`mean` 和分位数。
+- [x] 对不存在的模型路径抛出模块专用异常。
+- [x] 添加 `examples/predict_via_module.py`。
+- [x] 添加推理请求校验测试。
+- [x] 添加“训练后立即加载并推理”的端到端测试。
+- [x] 在 README 中把推理状态从规划更新为已实现。
 
 ## 当前示例
 
@@ -411,6 +417,18 @@ examples/train_via_module.py
 
 ```powershell
 .\.venv\Scripts\python.exe examples\train_via_module.py
+```
+
+通过模块入口训练并推理的示例：
+
+```text
+examples/predict_via_module.py
+```
+
+运行方式：
+
+```powershell
+.\.venv\Scripts\python.exe examples\predict_via_module.py
 ```
 
 测试和示例共用的合成数据生成逻辑位于：
