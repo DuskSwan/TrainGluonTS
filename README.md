@@ -19,7 +19,6 @@ result = train_model(
         "algorithm": "deepar",
         "freq": "D",
         "prediction_length": 14,
-        "context_length": 28,
         "dataset": {
             "series": [
                 {
@@ -35,6 +34,12 @@ result = train_model(
             "num_batches_per_epoch": 50,
             "accelerator": "cpu",
         },
+        "hyperparameters": {
+            "context_length": 28,
+            "num_layers": 2,
+            "hidden_size": 40,
+            "dropout_rate": 0.1,
+        },
         "evaluation": {
             "enabled": True,
             "test_length": 14,
@@ -42,9 +47,9 @@ result = train_model(
     }
 )
 
-print(result["model_id"])
-print(result["model_path"])
-print(result["metrics"])
+print(result.model_id)
+print(result.model_path)
+print(result.metrics)
 ```
 
 第一版建议先实现同步训练。如果大仓需要后台任务、任务状态轮询或队列调度，可以由大仓自己的 worker 系统调用同一个 `train_model()` 入口。
@@ -62,6 +67,7 @@ TrainGluonTS/
       trainer.py          # 训练、评估、保存的核心流程
       registry.py         # 本地模型路径、metadata 管理
       errors.py           # 模块内专用异常
+      testing.py          # 测试和示例使用的合成数据生成工具
   examples/
     basic_gluonts_usage.py
     train_via_module.py
@@ -121,7 +127,6 @@ def delete_model(model_id: str) -> None:
   "algorithm": "deepar",
   "freq": "D",
   "prediction_length": 14,
-  "context_length": 28,
   "dataset": {
     "series": [
       {
@@ -137,6 +142,12 @@ def delete_model(model_id: str) -> None:
     "num_batches_per_epoch": 50,
     "accelerator": "cpu"
   },
+  "hyperparameters": {
+    "context_length": 28,
+    "num_layers": 2,
+    "hidden_size": 40,
+    "dropout_rate": 0.1
+  },
   "evaluation": {
     "enabled": true,
     "test_length": 14
@@ -144,9 +155,56 @@ def delete_model(model_id: str) -> None:
 }
 ```
 
-初始约束：
+## 当前支持的模型
 
-- `algorithm` 第一版先支持 `deepar`。
+第一版提供两种可创建模型，每种模型拥有独立超参数。
+
+### DeepAR
+
+`algorithm` 使用：
+
+```json
+"deepar"
+```
+
+支持的 `hyperparameters`：
+
+```json
+{
+  "context_length": 28,
+  "num_layers": 2,
+  "hidden_size": 40,
+  "dropout_rate": 0.1,
+  "lr": 0.001,
+  "weight_decay": 0.00000001,
+  "num_parallel_samples": 100,
+  "nonnegative_pred_samples": false
+}
+```
+
+### SimpleFeedForward
+
+`algorithm` 使用：
+
+```json
+"simple_feedforward"
+```
+
+支持的 `hyperparameters`：
+
+```json
+{
+  "context_length": 28,
+  "hidden_dimensions": [40, 40],
+  "lr": 0.001,
+  "weight_decay": 0.00000001,
+  "batch_norm": false
+}
+```
+
+## 初始约束
+
+- `algorithm` 第一版支持 `deepar` 和 `simple_feedforward`。
 - `freq` 使用 GluonTS/Pandas 兼容频率，例如 `D`、`H`、`15min`。
 - 每条序列必须包含 `start` 和数值型 `target`。
 - `prediction_length` 必须大于 0。
@@ -180,21 +238,21 @@ def delete_model(model_id: str) -> None:
 
 后续开发时用这份清单检查实现是否完整。
 
-- [ ] 创建 `src/traingluonts/` 包。
-- [ ] 添加公共入口 `train_model()`。
-- [ ] 定义类型化的训练请求和训练结果结构。
-- [ ] 支持接收大仓传入的普通 `dict`，并完成归一化。
-- [ ] 将请求中的序列转换为 GluonTS `ListDataset`。
-- [ ] 开启评估时，正确拆分 train/test 数据。
-- [ ] 第一版支持 `deepar` 算法。
-- [ ] 将 estimator 创建逻辑隔离在 `estimators.py`。
-- [ ] 使用 `predictor.serialize(...)` 保存模型。
-- [ ] 保存 `request.json`、`metrics.json` 和 `metadata.json`。
-- [ ] 返回相对稳定的模型路径。
-- [ ] 防止运行产物写到配置的 artifact 根目录之外。
-- [ ] 添加一个通过模块入口训练的示例脚本。
-- [ ] 添加参数校验、数据集转换、最小训练流程的测试。
-- [ ] 保持本模块不引入 HTTP/FastAPI，除非大仓后续明确需要适配层。
+- [x] 创建 `src/traingluonts/` 包。
+- [x] 添加公共入口 `train_model()`。
+- [x] 定义类型化的训练请求和训练结果结构。
+- [x] 支持接收大仓传入的普通 `dict`，并完成归一化。
+- [x] 将请求中的序列转换为 GluonTS `ListDataset`。
+- [x] 开启评估时，正确拆分 train/test 数据。
+- [x] 第一版支持 `deepar` 和 `simple_feedforward` 算法。
+- [x] 将 estimator 创建逻辑隔离在 `estimators.py`。
+- [x] 使用 `predictor.serialize(...)` 保存模型。
+- [x] 保存 `request.json`、`metrics.json` 和 `metadata.json`。
+- [x] 返回相对稳定的模型路径。
+- [x] 防止运行产物写到配置的 artifact 根目录之外。
+- [x] 添加一个通过模块入口训练的示例脚本。
+- [x] 添加参数校验、数据集转换、最小训练流程的测试。
+- [x] 保持本模块不引入 HTTP/FastAPI，除非大仓后续明确需要适配层。
 
 ## 当前示例
 
@@ -211,3 +269,21 @@ examples/basic_gluonts_usage.py
 ```
 
 该示例会用合成数据训练一个小型 DeepAR 模型，生成预测、计算评估指标，并将 predictor 保存到 `artifacts/gluonts_demo/`。
+
+通过模块入口训练的示例：
+
+```text
+examples/train_via_module.py
+```
+
+运行方式：
+
+```powershell
+.\.venv\Scripts\python.exe examples\train_via_module.py
+```
+
+测试和示例共用的合成数据生成逻辑位于：
+
+```text
+src/traingluonts/testing.py
+```
