@@ -1,0 +1,34 @@
+{
+  "model_name": "binary_cli_sales_demo",
+  "algorithm": "simple_feedforward",
+  "freq": "D",
+  "prediction_length": 7,
+  "artifact_root": "models",
+  "dataset": {
+    "type": "csv",
+    "path": "data/train_series.csv",
+    "format": "long",
+    "item_id_column": "item_id",
+    "timestamp_column": "timestamp",
+    "target_column": "target"
+  },
+  "training": {
+    "max_epochs": 1,
+    "batch_size": 2,
+    "num_batches_per_epoch": 1,
+    "accelerator": "cpu",
+    "enable_progress_bar": false,
+    "enable_model_summary": false,
+    "logger": false
+  },
+  "evaluation": {
+    "enabled": true,
+    "test_length": 7,
+    "num_samples": 20,
+    "quantiles": [0.1, 0.5, 0.9]
+  },
+  "hyperparameters": {
+    "context_length": 14,
+    "hidden_dimensions": [32, 32]
+  }
+}

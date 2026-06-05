@@ -1,0 +1,16 @@
+{
+  "model_path": "models/latest/predictor",
+  "freq": "D",
+  "dataset": {
+    "type": "csv",
+    "path": "data/predict_series.csv",
+    "format": "long",
+    "item_id_column": "item_id",
+    "timestamp_column": "timestamp",
+    "target_column": "target"
+  },
+  "prediction": {
+    "num_samples": 20,
+    "quantiles": [0.1, 0.5, 0.9]
+  }
+}

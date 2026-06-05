@@ -149,6 +149,22 @@ edge_job/
     ...
 ```
 
+仓库内已经提供一个可以直接测试二进制包的示例目录：
+
+```text
+examples/binary_cli_job/
+```
+
+示例目录中包含：
+
+- `train_request.json`：训练请求。
+- `predict_request.json`：推理请求，固定读取 `models/latest/predictor`。
+- `prepare_latest_model.ps1`：根据训练结果把随机 `model_id` 对应的模型复制到 `models/latest`。
+- `data/train_series.csv`：训练 CSV。
+- `data/predict_series.csv`：推理 CSV。
+- `models/`：训练模型输出目录。
+- `results/`：训练和推理结果输出目录。
+
 路径解析规则：
 
 - `--input` 指向请求 JSON 文件。
