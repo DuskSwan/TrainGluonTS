@@ -30,9 +30,16 @@ from traingluonts import (
 
 ## 通用数据结构
 
+训练和推理的 `dataset` 字段支持两种形式：
+
+- `DatasetSpec`：直接在请求中传入 `series`。
+- `DatasetCsvSpec`：传入 CSV 文件路径，由模块读取并转换成 `series`。
+
+当时间序列较长时，推荐使用 `DatasetCsvSpec`，避免把大数组直接放进请求参数。
+
 ### DatasetSpec
 
-训练和推理都使用相同的数据集结构。
+直接传入时间序列数据。
 
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -60,6 +67,59 @@ dataset = {
 }
 ```
 
+### DatasetCsvSpec
+
+通过 CSV 文件路径传入时间序列数据。
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `type` | `"csv"` | 是 | 无 | 固定为 `"csv"` |
+| `path` | `str \| Path` | 是 | 无 | CSV 文件路径 |
+| `format` | `"long"` | 否 | `"long"` | CSV 格式；当前只支持 long format |
+| `item_id_column` | `str` | 否 | `"item_id"` | 序列 id 列名；CSV 没有该列时按单序列处理 |
+| `timestamp_column` | `str` | 是 | 无 | 时间戳列名 |
+| `target_column` | `str` | 是 | 无 | 目标值列名 |
+
+CSV long format 示例：
+
+```csv
+item_id,timestamp,target
+store_001,2024-01-01,12.0
+store_001,2024-01-02,15.5
+store_001,2024-01-03,14.2
+store_002,2024-01-01,9.0
+store_002,2024-01-02,10.1
+store_002,2024-01-03,11.3
+```
+
+对应请求中的 `dataset`：
+
+```python
+dataset = {
+    "type": "csv",
+    "path": "data/train_series.csv",
+    "format": "long",
+    "item_id_column": "item_id",
+    "timestamp_column": "timestamp",
+    "target_column": "target",
+}
+```
+
+CSV 转换规则：
+
+1. 按 `item_id_column` 分组；如果 CSV 没有该列，则整个 CSV 作为一条序列。
+2. 每组按 `timestamp_column` 升序排序。
+3. 每组第一条时间作为 GluonTS `start`。
+4. 每组 `target_column` 转为 `target` 数组。
+5. 频率仍由请求中的 `freq` 字段提供。
+
+当前约束：
+
+- CSV 必须包含 `timestamp_column` 和 `target_column`。
+- `target_column` 必须能转换为 float。
+- 当前不自动补齐缺失时间点。
+- 当前不处理动态特征列或静态特征列。
+
 ## train_model
 
 训练模型，并将 predictor、训练请求、评估指标和 metadata 保存到本地。
@@ -79,7 +139,7 @@ def train_model(request: TrainingRequest | dict) -> TrainingResult:
 | `algorithm` | `"deepar" \| "simple_feedforward"` | 是 | 无 | 模型类型 |
 | `freq` | `str` | 是 | 无 | GluonTS/Pandas 频率，例如 `"D"`、`"H"`、`"15min"` |
 | `prediction_length` | `int` | 是 | 无 | 预测长度，必须大于 0 |
-| `dataset` | `DatasetSpec` | 是 | 无 | 训练数据 |
+| `dataset` | `DatasetSpec \| DatasetCsvSpec` | 是 | 无 | 训练数据，支持内嵌序列或 CSV 路径 |
 | `artifact_root` | `str \| Path` | 否 | `"artifacts/models"` | 模型保存根目录 |
 | `training` | `TrainingSettings` | 否 | 见下表 | 通用训练参数 |
 | `evaluation` | `EvaluationSettings` | 否 | 见下表 | 评估参数 |
@@ -143,6 +203,8 @@ def train_model(request: TrainingRequest | dict) -> TrainingResult:
 
 ### 输入示例
 
+直接传入 `series`：
+
 ```python
 from traingluonts import train_model
 
@@ -173,6 +235,42 @@ result = train_model(
             "test_length": 3,
             "num_samples": 100,
             "quantiles": [0.1, 0.5, 0.9],
+        },
+        "hyperparameters": {
+            "context_length": 28,
+            "num_layers": 2,
+            "hidden_size": 40,
+        },
+    }
+)
+```
+
+使用 CSV 文件：
+
+```python
+result = train_model(
+    {
+        "model_name": "daily_sales_deepar",
+        "algorithm": "deepar",
+        "freq": "D",
+        "prediction_length": 14,
+        "artifact_root": "artifacts/models",
+        "dataset": {
+            "type": "csv",
+            "path": "data/train_series.csv",
+            "timestamp_column": "timestamp",
+            "target_column": "target",
+            "item_id_column": "item_id",
+        },
+        "training": {
+            "max_epochs": 5,
+            "batch_size": 32,
+            "num_batches_per_epoch": 50,
+            "accelerator": "cpu",
+        },
+        "evaluation": {
+            "enabled": True,
+            "test_length": 14,
         },
         "hyperparameters": {
             "context_length": 28,
@@ -230,7 +328,7 @@ def predict(request: PredictionRequest | dict) -> PredictionResult:
 
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `dataset` | `DatasetSpec` | 是 | 无 | 待预测数据 |
+| `dataset` | `DatasetSpec \| DatasetCsvSpec` | 是 | 无 | 待预测数据，支持内嵌序列或 CSV 路径 |
 | `model_id` | `str \| None` | 条件必填 | `None` | 模型 id；与 `model_path` 至少传一个 |
 | `model_path` | `str \| Path \| None` | 条件必填 | `None` | predictor 路径；与 `model_id` 至少传一个 |
 | `artifact_root` | `str \| Path` | 否 | `"artifacts/models"` | 使用 `model_id` 时的模型根目录 |
@@ -265,6 +363,28 @@ prediction = predict(
                     "target": [12.0, 15.5, 14.2, 18.1],
                 }
             ]
+        },
+        "prediction": {
+            "num_samples": 100,
+            "quantiles": [0.1, 0.5, 0.9],
+        },
+    }
+)
+```
+
+使用 CSV 文件推理：
+
+```python
+prediction = predict(
+    {
+        "model_id": "model_20260604_120000_ab12cd",
+        "artifact_root": "artifacts/models",
+        "dataset": {
+            "type": "csv",
+            "path": "data/predict_series.csv",
+            "timestamp_column": "timestamp",
+            "target_column": "target",
+            "item_id_column": "item_id",
         },
         "prediction": {
             "num_samples": 100,
@@ -424,7 +544,7 @@ def predict_with_model(
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
 | `model_path` | `str \| Path` | 是 | 无 | predictor 路径 |
-| `dataset` | `DatasetSpec \| dict` | 是 | 无 | 待预测数据 |
+| `dataset` | `DatasetSpec \| DatasetCsvSpec \| dict` | 是 | 无 | 待预测数据，支持内嵌序列或 CSV 路径 |
 | `freq` | `str \| None` | 条件必填 | `None` | 无法从 `request.json` 读取频率时必须传 |
 | `num_samples` | `int` | 否 | `100` | 预测采样数 |
 | `quantiles` | `list[float] \| None` | 否 | `[0.1, 0.5, 0.9]` | 输出分位数 |

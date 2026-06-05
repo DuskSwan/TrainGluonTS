@@ -46,6 +46,22 @@ class DatasetSpec(BaseModel):
         return value
 
 
+class DatasetCsvSpec(BaseModel):
+    """CSV dataset reference accepted by local APIs and binary wrappers."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["csv"]
+    path: Path
+    format: Literal["long"] = "long"
+    item_id_column: str = "item_id"
+    timestamp_column: str
+    target_column: str
+
+
+DatasetInput = DatasetSpec | DatasetCsvSpec
+
+
 class DeepARHyperParameters(BaseModel):
     """Hyperparameters specific to GluonTS DeepAR."""
 
@@ -127,7 +143,7 @@ class TrainingRequest(BaseModel):
     algorithm: AlgorithmName
     freq: str
     prediction_length: int = Field(gt=0)
-    dataset: DatasetSpec
+    dataset: DatasetInput
     artifact_root: Path = Path("artifacts/models")
     training: TrainingSettings = Field(default_factory=TrainingSettings)
     evaluation: EvaluationSettings = Field(default_factory=EvaluationSettings)
@@ -135,6 +151,9 @@ class TrainingRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> TrainingRequest:
+        if isinstance(self.dataset, DatasetCsvSpec):
+            return self
+
         holdout = self.evaluation.test_length or self.prediction_length
 
         if self.evaluation.enabled:
@@ -215,7 +234,7 @@ class PredictionRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    dataset: DatasetSpec
+    dataset: DatasetInput
     model_id: str | None = None
     model_path: Path | None = None
     artifact_root: Path = Path("artifacts/models")

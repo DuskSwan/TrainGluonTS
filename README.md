@@ -4,6 +4,8 @@ TrainGluonTS 是一个用于 **训练和推理** GluonTS 时间序列预测模�
 
 推理接口会输出每条序列的预测开始时间、均值预测和分位数预测结果。
 
+训练和推理接口的 `dataset` 支持两种输入方式：直接传入 `series`，或传入 CSV 文件路径。长时间序列推荐使用 CSV。
+
 本仓库后续会作为模块并入更大的 Python 仓库，因此主要集成方式是 **直接调用 Python 函数**，不是创建 HTTP/FastAPI 服务。
 
 完整接口文档见：
@@ -21,6 +23,7 @@ docs/api.md
 - [x] 支持结构化推理请求校验。
 - [x] 支持合成测试数据生成。
 - [x] 支持 GluonTS `ListDataset` 数据转换。
+- [x] 支持从 CSV 文件读取训练和推理数据。
 - [x] 支持 `deepar` 和 `simple_feedforward` 两种模型。
 - [x] 支持两种模型各自独立的超参数。
 - [x] 支持训练集/测试集拆分和 holdout 评估。
@@ -214,6 +217,25 @@ def predict_with_model(model_path: str | Path, dataset: DatasetSpec) -> Predicti
   "evaluation": {
     "enabled": true,
     "test_length": 14
+  }
+}
+```
+
+长时间序列也可以使用 CSV 数据源：
+
+```json
+{
+  "model_name": "daily_sales_deepar",
+  "algorithm": "deepar",
+  "freq": "D",
+  "prediction_length": 14,
+  "dataset": {
+    "type": "csv",
+    "path": "data/train_series.csv",
+    "format": "long",
+    "item_id_column": "item_id",
+    "timestamp_column": "timestamp",
+    "target_column": "target"
   }
 }
 ```

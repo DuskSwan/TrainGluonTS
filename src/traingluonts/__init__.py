@@ -3,6 +3,8 @@
 from traingluonts.inference import load_predictor, predict, predict_with_model
 from traingluonts.registry import load_model
 from traingluonts.schemas import (
+    DatasetCsvSpec,
+    DatasetSpec,
     PredictionRequest,
     PredictionResult,
     TrainingRequest,
@@ -11,6 +13,8 @@ from traingluonts.schemas import (
 from traingluonts.trainer import train_model
 
 __all__ = [
+    "DatasetCsvSpec",
+    "DatasetSpec",
     "PredictionRequest",
     "PredictionResult",
     "TrainingRequest",

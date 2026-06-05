@@ -8,7 +8,7 @@ from typing import Any
 from gluonts.evaluation import Evaluator, make_evaluation_predictions
 from pydantic import ValidationError
 
-from traingluonts.dataset import split_for_evaluation, to_list_dataset
+from traingluonts.dataset import resolve_dataset, split_for_evaluation, to_list_dataset
 from traingluonts.errors import ModelTrainingError, TrainingRequestError
 from traingluonts.estimators import create_estimator
 from traingluonts.registry import (
@@ -84,11 +84,35 @@ def train_model(request: TrainingRequest | dict[str, Any]) -> TrainingResult:
 def _normalize_request(request: TrainingRequest | dict[str, Any]) -> TrainingRequest:
     if isinstance(request, TrainingRequest):
         request.model_hyperparameters()
-        return request
+        return _with_resolved_dataset(request)
 
     normalized = TrainingRequest.model_validate(request)
     normalized.model_hyperparameters()
-    return normalized
+    return _with_resolved_dataset(normalized)
+
+
+def _with_resolved_dataset(request: TrainingRequest) -> TrainingRequest:
+    dataset = resolve_dataset(request.dataset)
+    resolved = request.model_copy(update={"dataset": dataset})
+    _validate_dataset_lengths(resolved)
+    return resolved
+
+
+def _validate_dataset_lengths(request: TrainingRequest) -> None:
+    holdout = request.evaluation.test_length or request.prediction_length
+
+    if request.evaluation.enabled:
+        for item in request.dataset.series:
+            if len(item.target) <= holdout:
+                raise TrainingRequestError(
+                    "each target length must be greater than evaluation test_length"
+                )
+    else:
+        for item in request.dataset.series:
+            if len(item.target) < request.prediction_length:
+                raise TrainingRequestError(
+                    "each target length must be at least prediction_length"
+                )
 
 
 def _evaluate(
