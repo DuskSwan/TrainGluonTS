@@ -9,6 +9,7 @@ from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
+FIXTURES = ROOT / "tests" / "fixtures"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
@@ -92,6 +93,23 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(len(dataset.series), 2)
         self.assertEqual(dataset.series[0].start, "2024-01-01")
         self.assertEqual(len(dataset.series[0].target), 5)
+
+    def test_mock_long_csv_fixture_conversion(self) -> None:
+        dataset = read_csv_dataset(
+            DatasetCsvSpec(
+                type="csv",
+                path=FIXTURES / "mock_long_series.csv",
+                timestamp_column="timestamp",
+                target_column="target",
+            )
+        )
+
+        self.assertEqual(len(dataset.series), 3)
+        self.assertEqual(dataset.series[0].item_id, "store_001")
+        self.assertEqual(dataset.series[0].start, "2024-01-01")
+        self.assertEqual(len(dataset.series[0].target), 90)
+        self.assertEqual(len(dataset.series[1].target), 90)
+        self.assertEqual(len(dataset.series[2].target), 90)
 
     def test_estimator_factory_supports_two_models(self) -> None:
         for algorithm in ["deepar", "simple_feedforward"]:
@@ -266,6 +284,51 @@ class CoreTests(unittest.TestCase):
 
         self.assertEqual(len(prediction_result.forecasts), 2)
         self.assertIn("0.5", prediction_result.forecasts[0].quantiles)
+
+    def test_train_and_predict_from_mock_long_csv_fixture(self) -> None:
+        tmp_root = ROOT / "artifacts" / "test_runs"
+        tmp_root.mkdir(parents=True, exist_ok=True)
+        tmp_dir = tmp_root / f"core_mock_long_csv_{uuid4().hex[:8]}"
+        tmp_dir.mkdir(parents=True)
+        self.addCleanup(lambda: shutil.rmtree(tmp_dir, ignore_errors=True))
+
+        csv_dataset = {
+            "type": "csv",
+            "path": str(FIXTURES / "mock_long_series.csv"),
+            "timestamp_column": "timestamp",
+            "target_column": "target",
+        }
+        request = generate_training_request(
+            algorithm="simple_feedforward",
+            artifact_root=str(tmp_dir),
+            prediction_length=7,
+            context_length=14,
+            max_epochs=1,
+            num_batches_per_epoch=1,
+            batch_size=3,
+        )
+        request["dataset"] = csv_dataset
+        request["evaluation"]["test_length"] = 7
+        request["prediction_length"] = 7
+        request["hyperparameters"]["context_length"] = 14
+
+        training_result = train_model(request)
+        prediction_result = predict(
+            {
+                "model_id": training_result.model_id,
+                "artifact_root": str(tmp_dir),
+                "dataset": csv_dataset,
+                "prediction": {
+                    "num_samples": 20,
+                    "quantiles": [0.1, 0.5, 0.9],
+                },
+            }
+        )
+
+        self.assertTrue(Path(training_result.model_path).exists())
+        self.assertEqual(len(prediction_result.forecasts), 3)
+        self.assertEqual(len(prediction_result.forecasts[0].mean), 7)
+        self.assertIn("0.9", prediction_result.forecasts[0].quantiles)
 
     def test_predict_by_model_path(self) -> None:
         tmp_root = ROOT / "artifacts" / "test_runs"
