@@ -4,6 +4,12 @@
 
 目标是让边端或非 Python 调用方无需直接 import Python 包，而是运行一个二进制程序，传入参数 JSON 和数据 CSV 路径，即可完成训练或推理。
 
+具体构建和调用步骤见：
+
+```text
+docs/binary_packaging_usage.md
+```
+
 ## 设计目标
 
 - 提供一个稳定 CLI 入口，包装现有 `train_model(...)` 和 `predict(...)`。

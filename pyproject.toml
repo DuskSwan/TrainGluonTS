@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "gluonts[torch]>=0.16.2",
+    "orjson>=3.11.9",
     "pydantic>=2.13.4",
     "pyinstaller>=6.20.0",
 ]
