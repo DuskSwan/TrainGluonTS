@@ -12,6 +12,8 @@ from traingluonts.schemas import (
 )
 from traingluonts.trainer import train_model
 
+__version__ = "0.1.0"
+
 __all__ = [
     "DatasetCsvSpec",
     "DatasetSpec",
@@ -19,6 +21,7 @@ __all__ = [
     "PredictionResult",
     "TrainingRequest",
     "TrainingResult",
+    "__version__",
     "load_predictor",
     "load_model",
     "predict",

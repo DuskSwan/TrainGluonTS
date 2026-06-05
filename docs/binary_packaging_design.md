@@ -1,6 +1,6 @@
-# 二进制打包模块设计
+# 二进制打包模块设计与使用说明
 
-本文档描述 TrainGluonTS 后续如何增加一个专门的二进制包装与打包模块。当前文档仅为设计草案，尚未开始实现。
+本文档描述 TrainGluonTS 的二进制包装与打包模块。当前已实现 CLI 入口、统一 JSON 输入输出、PyInstaller 构建包装脚本，以及基础 CLI 测试。
 
 目标是让边端或非 Python 调用方无需直接 import Python 包，而是运行一个二进制程序，传入参数 JSON 和数据 CSV 路径，即可完成训练或推理。
 
@@ -20,7 +20,7 @@
 - 不把模型文件打进二进制包。模型仍保存在本地 artifact 目录。
 - 不承诺跨操作系统通用同一个二进制文件。Windows、Linux、边端架构需要分别构建。
 
-## 建议新增模块结构
+## 已实现模块结构
 
 ```text
 TrainGluonTS/
@@ -34,7 +34,7 @@ TrainGluonTS/
       packaging/
         __init__.py
         build.py           # 打包脚本入口
-        pyinstaller.spec   # PyInstaller 配置，实施时可选
+        pyinstaller.spec   # 尚未需要，后续如需精细配置再添加
   docs/
     binary_packaging_design.md
   dist/
@@ -62,7 +62,25 @@ Windows 下产物：
 traingluonts.exe
 ```
 
+开发期也可以直接运行 Python 模块：
+
+```powershell
+.\.venv\Scripts\python.exe -m traingluonts.cli.main version --pretty
+```
+
+如果本项目已安装到当前环境，也可以使用 `pyproject.toml` 中的脚本入口：
+
+```powershell
+traingluonts version --pretty
+```
+
 ## CLI 命令设计
+
+路径解析规则：
+
+- `--input` 指向请求 JSON 文件。
+- 请求 JSON 里的 `dataset.path`、`artifact_root` 和 `model_path` 如果是相对路径，会按请求 JSON 所在目录解析。
+- 这样边端部署时可以把 `request.json`、`data/` 和 `models/` 放在同一个业务目录下，不依赖启动命令的当前工作目录。
 
 ### 查看版本
 
@@ -359,10 +377,10 @@ pyinstaller --onedir --name traingluonts src/traingluonts/cli/main.py
 
 ## 构建命令设计
 
-建议提供一个 Python 构建入口：
+当前提供一个 Python 构建入口：
 
 ```powershell
-python -m traingluonts.packaging.build --mode onedir
+.\.venv\Scripts\python.exe -m traingluonts.packaging.build --mode onedir
 ```
 
 参数：
@@ -373,10 +391,37 @@ python -m traingluonts.packaging.build --mode onedir
 | `--name` | `traingluonts` | 二进制文件名 |
 | `--clean` | `false` | 构建前清理 build/dist |
 | `--output-dir` | `dist` | 构建输出目录 |
+| `--build-dir` | `build/pyinstaller` | PyInstaller 中间文件目录 |
+
+第一次构建前需要安装可选打包依赖：
+
+```powershell
+uv pip install -e ".[packaging]"
+```
+
+Windows 目录模式构建示例：
+
+```powershell
+.\.venv\Scripts\python.exe -m traingluonts.packaging.build --mode onedir --clean
+```
+
+预期产物：
+
+```text
+dist/
+  traingluonts/
+    traingluonts.exe
+```
+
+单文件模式：
+
+```powershell
+.\.venv\Scripts\python.exe -m traingluonts.packaging.build --mode onefile --clean
+```
 
 ## pyproject.toml 计划变更
 
-实施时建议新增可选依赖：
+已新增可选依赖：
 
 ```toml
 [project.optional-dependencies]
@@ -385,14 +430,14 @@ packaging = [
 ]
 ```
 
-也可以增加脚本入口，便于开发期测试 CLI：
+已新增脚本入口，便于开发期测试 CLI：
 
 ```toml
 [project.scripts]
 traingluonts = "traingluonts.cli.main:main"
 ```
 
-注意：脚本入口只影响 Python 包安装后的命令，不等同于二进制产物。
+注意：脚本入口只影响 Python 包安装后的命令，不等同于二进制产物。真正的二进制产物由 `traingluonts.packaging.build` 调用 PyInstaller 生成。
 
 ## 打包风险点
 
@@ -420,16 +465,16 @@ PyTorch 依赖动态库。目录模式更容易保留动态库；单文件模式
 
 实施时至少增加以下测试：
 
-- [ ] CLI `version` 命令返回 JSON。
-- [ ] CLI `train --input ... --output ...` 可以训练并保存模型。
-- [ ] CLI `predict --input ... --output ...` 可以加载模型并输出预测。
-- [ ] CLI 可以从 CSV 文件读取训练数据。
-- [ ] CLI 可以从 CSV 文件读取推理数据。
-- [ ] CSV 缺少必填列时返回统一错误 JSON。
+- [x] CLI `version` 命令返回 JSON。
+- [x] CLI `train --input ... --output ...` 可以训练并保存模型。
+- [x] CLI `predict --input ... --output ...` 可以加载模型并输出预测。
+- [x] CLI 可以从 CSV 文件读取训练数据。
+- [x] CLI 可以从 CSV 文件读取推理数据。
+- [x] CSV 缺少必填列时返回统一错误 JSON。
 - [ ] 输入 JSON 缺少必填字段时返回统一错误 JSON。
 - [ ] 不存在模型路径时返回统一错误 JSON。
 - [ ] `--output` 不传时结果写入 stdout。
-- [ ] `--output` 传入时结果写入文件。
+- [x] `--output` 传入时结果写入文件。
 
 二进制构建验收：
 
@@ -443,18 +488,18 @@ PyTorch 依赖动态库。目录模式更容易保留动态库；单文件模式
 
 ## 实施清单
 
-- [ ] 新建 `src/traingluonts/cli/`。
-- [ ] 实现 `main.py`，使用 `argparse` 提供 `version/train/predict` 子命令。
-- [ ] 实现 JSON 输入输出工具。
-- [ ] 实现 CSV 数据读取工具，将 `DatasetCsvSpec` 转为现有 `DatasetSpec`。
-- [ ] 将模块异常映射为统一错误 JSON 和退出码。
-- [ ] 新建 `src/traingluonts/packaging/`。
-- [ ] 实现 `build.py`，封装 PyInstaller 调用。
+- [x] 新建 `src/traingluonts/cli/`。
+- [x] 实现 `main.py`，使用 `argparse` 提供 `version/train/predict` 子命令。
+- [x] 实现 JSON 输入输出工具。
+- [x] 复用现有 CSV 数据读取工具，将 `DatasetCsvSpec` 转为现有 `DatasetSpec`。
+- [x] 将模块异常映射为统一错误 JSON 和退出码。
+- [x] 新建 `src/traingluonts/packaging/`。
+- [x] 实现 `build.py`，封装 PyInstaller 调用。
 - [ ] 按需添加 PyInstaller spec。
-- [ ] 更新 `pyproject.toml` optional dependency 和 script entry。
-- [ ] 更新 `.gitignore`，忽略 `build/` 和 `dist/`。
-- [ ] 新增 CLI 测试。
-- [ ] 新增二进制打包验证说明。
+- [x] 更新 `pyproject.toml` optional dependency 和 script entry。
+- [x] 更新 `.gitignore`，忽略 `build/` 和 `dist/`。
+- [x] 新增 CLI 测试。
+- [x] 新增二进制打包验证说明。
 
 ## 外部调用方预期流程
 

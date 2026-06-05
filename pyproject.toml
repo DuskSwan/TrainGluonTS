@@ -9,6 +9,14 @@ dependencies = [
     "pydantic>=2.13.4",
 ]
 
+[project.optional-dependencies]
+packaging = [
+    "pyinstaller>=6",
+]
+
+[project.scripts]
+traingluonts = "traingluonts.cli.main:main"
+
 [build-system]
 requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import csv
+import io
+import json
 import shutil
 import sys
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from uuid import uuid4
 
@@ -14,6 +17,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from traingluonts.dataset import read_csv_dataset, split_for_evaluation, to_list_dataset
+from traingluonts.cli.main import main as cli_main
 from traingluonts.errors import (
     ModelRegistryError,
     PredictionRequestError,
@@ -371,6 +375,150 @@ class CoreTests(unittest.TestCase):
         )
         self.assertEqual(len(helper_result.forecasts), 1)
         self.assertIn("0.5", helper_result.forecasts[0].quantiles)
+
+    def test_cli_version_outputs_json(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            exit_code = cli_main(["version"])
+
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["version"], "0.1.0")
+
+    def test_cli_train_and_predict_from_csv_files(self) -> None:
+        tmp_root = ROOT / "artifacts" / "test_runs"
+        tmp_root.mkdir(parents=True, exist_ok=True)
+        tmp_dir = tmp_root / f"cli_csv_{uuid4().hex[:8]}"
+        tmp_dir.mkdir(parents=True)
+        self.addCleanup(lambda: shutil.rmtree(tmp_dir, ignore_errors=True))
+
+        data_dir = tmp_dir / "data"
+        csv_path = data_dir / "series.csv"
+        self._write_csv_dataset(csv_path, num_series=2, length=30)
+
+        train_request = generate_training_request(
+            algorithm="simple_feedforward",
+            artifact_root="models",
+            num_series=2,
+            length=30,
+            prediction_length=3,
+            context_length=6,
+            max_epochs=1,
+            num_batches_per_epoch=1,
+            batch_size=2,
+        )
+        train_request["dataset"] = {
+            "type": "csv",
+            "path": "data/series.csv",
+            "timestamp_column": "timestamp",
+            "target_column": "target",
+        }
+
+        train_input = tmp_dir / "train_request.json"
+        train_output = tmp_dir / "train_result.json"
+        train_input.write_text(
+            json.dumps(train_request, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        train_exit = cli_main(
+            [
+                "train",
+                "--input",
+                str(train_input),
+                "--output",
+                str(train_output),
+            ]
+        )
+        train_payload = json.loads(train_output.read_text(encoding="utf-8"))
+
+        self.assertEqual(train_exit, 0)
+        self.assertTrue(train_payload["ok"])
+        self.assertTrue(Path(train_payload["result"]["model_path"]).exists())
+        self.assertTrue((tmp_dir / "models").exists())
+
+        predict_request = {
+            "model_id": train_payload["result"]["model_id"],
+            "artifact_root": "models",
+            "dataset": {
+                "type": "csv",
+                "path": "data/series.csv",
+                "timestamp_column": "timestamp",
+                "target_column": "target",
+            },
+            "prediction": {
+                "num_samples": 20,
+                "quantiles": [0.5],
+            },
+        }
+        predict_input = tmp_dir / "predict_request.json"
+        predict_output = tmp_dir / "predict_result.json"
+        predict_input.write_text(
+            json.dumps(predict_request, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        predict_exit = cli_main(
+            [
+                "predict",
+                "--input",
+                str(predict_input),
+                "--output",
+                str(predict_output),
+            ]
+        )
+        predict_payload = json.loads(predict_output.read_text(encoding="utf-8"))
+
+        self.assertEqual(predict_exit, 0)
+        self.assertTrue(predict_payload["ok"])
+        self.assertEqual(len(predict_payload["result"]["forecasts"]), 2)
+        self.assertIn(
+            "0.5",
+            predict_payload["result"]["forecasts"][0]["quantiles"],
+        )
+
+    def test_cli_writes_error_json_for_invalid_csv_request(self) -> None:
+        tmp_root = ROOT / "artifacts" / "test_runs"
+        tmp_root.mkdir(parents=True, exist_ok=True)
+        tmp_dir = tmp_root / f"cli_error_{uuid4().hex[:8]}"
+        tmp_dir.mkdir(parents=True)
+        self.addCleanup(lambda: shutil.rmtree(tmp_dir, ignore_errors=True))
+
+        csv_path = tmp_dir / "bad.csv"
+        csv_path.write_text("timestamp,value\n2024-01-01,10\n", encoding="utf-8")
+        request = generate_training_request(
+            artifact_root=str(tmp_dir / "models"),
+            max_epochs=1,
+            num_batches_per_epoch=1,
+        )
+        request["dataset"] = {
+            "type": "csv",
+            "path": str(csv_path),
+            "timestamp_column": "timestamp",
+            "target_column": "target",
+        }
+
+        input_path = tmp_dir / "request.json"
+        output_path = tmp_dir / "result.json"
+        input_path.write_text(json.dumps(request), encoding="utf-8")
+
+        exit_code = cli_main(
+            [
+                "train",
+                "--input",
+                str(input_path),
+                "--output",
+                str(output_path),
+            ]
+        )
+        payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(exit_code, 3)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["error"]["type"], "TrainingRequestError")
+        self.assertIn("missing required columns", payload["error"]["message"])
 
 
 if __name__ == "__main__":

@@ -92,7 +92,11 @@ def _normalize_request(request: TrainingRequest | dict[str, Any]) -> TrainingReq
 
 
 def _with_resolved_dataset(request: TrainingRequest) -> TrainingRequest:
-    dataset = resolve_dataset(request.dataset)
+    try:
+        dataset = resolve_dataset(request.dataset)
+    except (OSError, ValueError) as exc:
+        raise TrainingRequestError(str(exc)) from exc
+
     resolved = request.model_copy(update={"dataset": dataset})
     _validate_dataset_lengths(resolved)
     return resolved

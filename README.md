@@ -14,6 +14,12 @@ TrainGluonTS 是一个用于 **训练和推理** GluonTS 时间序列预测模�
 docs/api.md
 ```
 
+二进制 CLI 和打包说明见：
+
+```text
+docs/binary_packaging_design.md
+```
+
 ## 当前能力检查
 
 现有工具已经可以满足第一版训练和推理需求：
@@ -31,6 +37,8 @@ docs/api.md
 - [x] 支持通过 `model_id + artifact_root` 推理。
 - [x] 支持通过 `model_path` 推理。
 - [x] 支持推理均值和分位数输出。
+- [x] 支持二进制 CLI 包装入口 `version/train/predict`。
+- [x] 支持 PyInstaller 打包包装脚本。
 - [x] 支持最小训练流程测试。
 - [x] 支持训练后加载并推理的端到端测试。
 
@@ -105,6 +113,8 @@ TrainGluonTS/
       registry.py         # 本地模型路径、metadata 管理
       errors.py           # 模块内专用异常
       testing.py          # 测试和示例使用的合成数据生成工具
+      cli/                # 二进制和命令行入口
+      packaging/          # PyInstaller 构建包装
   examples/
     basic_gluonts_usage.py
     train_via_module.py
@@ -463,4 +473,16 @@ examples/predict_via_module.py
 
 ```text
 src/traingluonts/testing.py
+```
+
+二进制 CLI 开发期验证：
+
+```powershell
+.\.venv\Scripts\python.exe -m traingluonts.cli.main version --pretty
+```
+
+PyInstaller 打包入口：
+
+```powershell
+.\.venv\Scripts\python.exe -m traingluonts.packaging.build --mode onedir --clean
 ```

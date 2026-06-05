@@ -1,4 +1,6 @@
 *.py[cod]
 __pycache__/
 artifacts/
+build/
 checkpoints/
+dist/

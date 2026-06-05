@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 from pydantic import ValidationError
 
-from traingluonts.dataset import to_list_dataset
+from traingluonts.dataset import resolve_dataset, to_list_dataset
 from traingluonts.errors import (
     ModelPredictionError,
     ModelRegistryError,
@@ -116,8 +116,16 @@ def _normalize_request(
     request: PredictionRequest | dict[str, Any],
 ) -> PredictionRequest:
     if isinstance(request, PredictionRequest):
-        return request
-    return PredictionRequest.model_validate(request)
+        normalized = request
+    else:
+        normalized = PredictionRequest.model_validate(request)
+
+    try:
+        dataset = resolve_dataset(normalized.dataset)
+    except (OSError, ValueError) as exc:
+        raise PredictionRequestError(str(exc)) from exc
+
+    return normalized.model_copy(update={"dataset": dataset})
 
 
 def _training_request_path(
