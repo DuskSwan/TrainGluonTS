@@ -136,6 +136,7 @@ traingluonts train --input train_request.json --output train_result.json
   },
   "training": {
     "max_epochs": 5,
+    "checkpoint_every_n_epochs": 100,
     "batch_size": 32,
     "num_batches_per_epoch": 50,
     "accelerator": "cpu"

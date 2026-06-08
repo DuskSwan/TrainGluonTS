@@ -283,6 +283,7 @@ Linux 下也可以直接使用绝对路径，例如：
   },
   "training": {
     "max_epochs": 1,
+    "checkpoint_every_n_epochs": 100,
     "batch_size": 3,
     "num_batches_per_epoch": 1,
     "accelerator": "cpu"

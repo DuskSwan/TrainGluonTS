@@ -17,12 +17,14 @@ def train_estimator_without_checkpoint_pruning(
     training_data: Dataset,
     validation_data: Dataset | None = None,
     cache_data: bool = False,
+    checkpoint_every_n_epochs: int = 100,
 ) -> TrainOutput:
     """Train a GluonTS Torch estimator without deleting old checkpoints.
 
     GluonTS injects a ModelCheckpoint callback by default. On Windows, pruning
     older checkpoint files can fail with PermissionError. This helper keeps all
-    checkpoints and loads the last trained in-memory module into the predictor.
+    checkpoints at the requested epoch interval and loads the last trained
+    in-memory module into the predictor.
     """
     transformation = estimator.create_transformation()
 
@@ -64,6 +66,7 @@ def train_estimator_without_checkpoint_pruning(
                     mode="min",
                     verbose=True,
                     save_top_k=-1,
+                    every_n_epochs=checkpoint_every_n_epochs,
                 )
             ],
             **estimator.trainer_kwargs,

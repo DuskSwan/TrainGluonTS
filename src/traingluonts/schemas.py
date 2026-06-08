@@ -106,6 +106,7 @@ class TrainingSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     max_epochs: int = Field(default=5, gt=0)
+    checkpoint_every_n_epochs: int = Field(default=100, gt=0)
     batch_size: int = Field(default=32, gt=0)
     num_batches_per_epoch: int = Field(default=50, gt=0)
     accelerator: str = "cpu"

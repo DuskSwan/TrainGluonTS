@@ -48,6 +48,7 @@ def generate_training_request(
     num_series: int = 4,
     length: int = 60,
     max_epochs: int = 1,
+    checkpoint_every_n_epochs: int = 100,
     num_batches_per_epoch: int = 2,
     batch_size: int = 8,
     artifact_root: str = "artifacts/test_models",
@@ -84,6 +85,7 @@ def generate_training_request(
         },
         "training": {
             "max_epochs": max_epochs,
+            "checkpoint_every_n_epochs": checkpoint_every_n_epochs,
             "batch_size": batch_size,
             "num_batches_per_epoch": num_batches_per_epoch,
             "accelerator": "cpu",

@@ -213,6 +213,7 @@ edge_job/data/train_series.csv
   },
   "training": {
     "max_epochs": 1,
+    "checkpoint_every_n_epochs": 100,
     "batch_size": 3,
     "num_batches_per_epoch": 1,
     "accelerator": "cpu"
@@ -261,6 +262,7 @@ CSV 数据源字段：
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
 | `max_epochs` | `integer` | 否 | `5` | 最大训练轮数，必须大于 0 |
+| `checkpoint_every_n_epochs` | `integer` | 否 | `100` | 每多少个 epoch 保存一次 checkpoint，必须大于 0 |
 | `batch_size` | `integer` | 否 | `32` | batch 大小，必须大于 0 |
 | `num_batches_per_epoch` | `integer` | 否 | `50` | 每轮 batch 数，必须大于 0 |
 | `accelerator` | `string` | 否 | `cpu` | Lightning accelerator；Linux CPU 部署建议使用 `cpu` |

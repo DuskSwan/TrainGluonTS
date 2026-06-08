@@ -87,6 +87,7 @@ result = train_model(
         },
         "training": {
             "max_epochs": 10,
+            "checkpoint_every_n_epochs": 100,
             "batch_size": 32,
             "num_batches_per_epoch": 50,
             "accelerator": "cpu",
@@ -268,6 +269,7 @@ def predict_with_model(model_path: str | Path, dataset: DatasetSpec) -> Predicti
   },
   "training": {
     "max_epochs": 10,
+    "checkpoint_every_n_epochs": 100,
     "batch_size": 32,
     "num_batches_per_epoch": 50,
     "accelerator": "cpu"

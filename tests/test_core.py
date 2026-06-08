@@ -120,6 +120,21 @@ class CoreTests(unittest.TestCase):
 
         self.assertEqual(request.evaluation.num_workers, 0)
 
+    def test_checkpoint_interval_defaults_to_one_hundred_epochs(self) -> None:
+        request = generate_training_request()
+        del request["training"]["checkpoint_every_n_epochs"]
+
+        normalized = TrainingRequest.model_validate(request)
+
+        self.assertEqual(normalized.training.checkpoint_every_n_epochs, 100)
+
+    def test_checkpoint_interval_must_be_positive(self) -> None:
+        request = generate_training_request()
+        request["training"]["checkpoint_every_n_epochs"] = 0
+
+        with self.assertRaises(ValueError):
+            TrainingRequest.model_validate(request)
+
     def test_evaluation_num_workers_must_not_be_negative(self) -> None:
         request = generate_training_request()
         request["evaluation"]["num_workers"] = -1

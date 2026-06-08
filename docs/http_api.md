@@ -16,7 +16,7 @@
 开发期启动：
 
 ```powershell
-$env:PYTHONPATH="src"
+TRAINGLUONTS_API_HOST=0.0.0.0 \
 .\.venv\Scripts\python.exe -m traingluonts.api.server
 ```
 
@@ -171,6 +171,7 @@ curl -s http://127.0.0.1:8012/api/v1/version
   },
   "training": {
     "max_epochs": 1,
+    "checkpoint_every_n_epochs": 100,
     "batch_size": 3,
     "num_batches_per_epoch": 1,
     "accelerator": "cpu"
@@ -210,6 +211,7 @@ curl -s -X POST http://127.0.0.1:8012/api/v1/train \
     },
     "training": {
       "max_epochs": 1,
+      "checkpoint_every_n_epochs": 100,
       "batch_size": 3,
       "num_batches_per_epoch": 1,
       "accelerator": "cpu"
@@ -274,6 +276,7 @@ curl -s -X POST http://127.0.0.1:8012/api/v1/train \
     },
     "training": {
       "max_epochs": 1,
+      "checkpoint_every_n_epochs": 100,
       "batch_size": 3,
       "num_batches_per_epoch": 1,
       "accelerator": "cpu"
@@ -311,6 +314,7 @@ curl -s -X POST http://127.0.0.1:8012/api/v1/train/jobs \
       },
       "training": {
         "max_epochs": 1,
+        "checkpoint_every_n_epochs": 100,
         "batch_size": 3,
         "num_batches_per_epoch": 1,
         "accelerator": "cpu"

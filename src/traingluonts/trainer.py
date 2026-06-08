@@ -47,6 +47,7 @@ def train_model(request: TrainingRequest | dict[str, Any]) -> TrainingResult:
         train_output = train_estimator_without_checkpoint_pruning(
             estimator,
             train_ds,
+            checkpoint_every_n_epochs=normalized.training.checkpoint_every_n_epochs,
         )
         predictor = train_output.predictor
 

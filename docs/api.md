@@ -152,6 +152,7 @@ def train_model(request: TrainingRequest | dict) -> TrainingResult:
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
 | `max_epochs` | `int` | 否 | `5` | 最大训练轮数，必须大于 0 |
+| `checkpoint_every_n_epochs` | `int` | 否 | `100` | 每多少个 epoch 保存一次 checkpoint，必须大于 0 |
 | `batch_size` | `int` | 否 | `32` | batch 大小，必须大于 0 |
 | `num_batches_per_epoch` | `int` | 否 | `50` | 每轮 batch 数，必须大于 0 |
 | `accelerator` | `str` | 否 | `"cpu"` | Lightning accelerator |
@@ -227,6 +228,7 @@ result = train_model(
         },
         "training": {
             "max_epochs": 5,
+            "checkpoint_every_n_epochs": 100,
             "batch_size": 32,
             "num_batches_per_epoch": 50,
             "accelerator": "cpu",
@@ -266,6 +268,7 @@ result = train_model(
         },
         "training": {
             "max_epochs": 5,
+            "checkpoint_every_n_epochs": 100,
             "batch_size": 32,
             "num_batches_per_epoch": 50,
             "accelerator": "cpu",
@@ -638,6 +641,7 @@ training_request = {
     },
     "training": {
         "max_epochs": 1,
+        "checkpoint_every_n_epochs": 100,
         "batch_size": 1,
         "num_batches_per_epoch": 1,
         "accelerator": "cpu",
