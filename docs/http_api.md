@@ -29,7 +29,7 @@ traingluonts-api
 默认监听：
 
 ```text
-http://127.0.0.1:8000
+http://127.0.0.1:8012
 ```
 
 可用环境变量：
@@ -37,7 +37,7 @@ http://127.0.0.1:8000
 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `TRAINGLUONTS_API_HOST` | `127.0.0.1` | 服务监听地址 |
-| `TRAINGLUONTS_API_PORT` | `8000` | 服务端口 |
+| `TRAINGLUONTS_API_PORT` | `8012` | 服务端口 |
 | `TRAINGLUONTS_API_ARTIFACT_ROOT` | `artifacts/models` | 默认模型根目录 |
 | `TRAINGLUONTS_API_DATA_ROOT` | `data` | 相对 CSV 路径的默认根目录 |
 | `TRAINGLUONTS_API_ALLOW_ABSOLUTE_PATHS` | `true` | 是否允许前端传绝对路径 |

@@ -16,7 +16,7 @@ class ApiSettings:
     """Runtime settings for the FastAPI service."""
 
     host: str = "127.0.0.1"
-    port: int = 8000
+    port: int = 8012
     artifact_root: Path = Path("artifacts/models")
     data_root: Path = Path("data")
     allow_absolute_paths: bool = True
@@ -34,7 +34,7 @@ def load_settings() -> ApiSettings:
 
     return ApiSettings(
         host=os.environ.get("TRAINGLUONTS_API_HOST", "127.0.0.1"),
-        port=int(os.environ.get("TRAINGLUONTS_API_PORT", "8000")),
+        port=int(os.environ.get("TRAINGLUONTS_API_PORT", "8012")),
         artifact_root=Path(
             os.environ.get("TRAINGLUONTS_API_ARTIFACT_ROOT", "artifacts/models")
         ),
@@ -53,4 +53,3 @@ def load_settings() -> ApiSettings:
             ]
         ),
     )
-
