@@ -26,6 +26,7 @@ docs/http_api.md
 ```text
 docs/binary_packaging_design.md
 docs/binary_packaging_usage.md
+docs/binary_cli_usage.md
 ```
 
 ## 当前能力检查
