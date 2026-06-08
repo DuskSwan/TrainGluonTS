@@ -12,6 +12,7 @@ TrainGluonTS 是一个用于 **训练和推理** GluonTS 时间序列预测模�
 
 ```text
 docs/api.md
+docs/http_api.md
 ```
 
 二进制 CLI 和打包说明见：

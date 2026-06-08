@@ -20,6 +20,7 @@ packaging = [
 
 [project.scripts]
 traingluonts = "traingluonts.cli.main:main"
+traingluonts-api = "traingluonts.api.server:main"
 
 [build-system]
 requires = ["setuptools>=69"]
