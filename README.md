@@ -6,7 +6,13 @@ TrainGluonTS 是一个用于 **训练和推理** GluonTS 时间序列预测模�
 
 训练和推理接口的 `dataset` 支持两种输入方式：直接传入 `series`，或传入 CSV 文件路径。长时间序列推荐使用 CSV。
 
-本仓库后续会作为模块并入更大的 Python 仓库，因此主要集成方式是 **直接调用 Python 函数**，不是创建 HTTP/FastAPI 服务。
+当前仓库提供三种集成方式：
+
+- **Python API**：核心集成方式，外部 Python 项目可以直接调用 `train_model()` 和 `predict()`。
+- **HTTP/FastAPI API**：面向前端或本机服务调用方的包装层，复用同一套训练、推理和模型加载逻辑。
+- **CLI/二进制入口**：面向边端或非 Python 调用方，通过 JSON 请求文件和 CSV 数据文件执行训练、推理和版本检查。
+
+三种入口共享同一套 schema、数据转换、训练、推理和错误处理逻辑。Python API 是核心业务实现，HTTP API 和 CLI 是适配层。
 
 完整接口文档见：
 
@@ -26,7 +32,9 @@ docs/binary_packaging_usage.md
 
 现有工具已经可以满足第一版训练和推理需求：
 
-- [x] 支持直接 Python 函数调用，不依赖 HTTP/FastAPI。
+- [x] 支持直接 Python 函数调用。
+- [x] 支持 HTTP/FastAPI 包装入口。
+- [x] 支持同步训练、异步训练任务、推理和模型加载检查接口。
 - [x] 支持结构化训练请求校验。
 - [x] 支持结构化推理请求校验。
 - [x] 支持合成测试数据生成。
@@ -41,6 +49,7 @@ docs/binary_packaging_usage.md
 - [x] 支持推理均值和分位数输出。
 - [x] 支持二进制 CLI 包装入口 `version/train/predict`。
 - [x] 支持 PyInstaller 打包包装脚本。
+- [x] 支持 `traingluonts-api` 服务启动脚本。
 - [x] 支持最小训练流程测试。
 - [x] 支持训练后加载并推理的端到端测试。
 
@@ -50,7 +59,7 @@ docs/binary_packaging_usage.md
 .\.venv\Scripts\python.exe -B -m unittest discover -s tests
 ```
 
-## 训练使用方式
+## Python 训练使用方式
 
 大仓向本模块传入一个训练请求，模块完成训练并返回结构化结果。
 
@@ -98,7 +107,44 @@ print(result.model_path)
 print(result.metrics)
 ```
 
-当前训练入口是同步函数。如果大仓需要后台任务、任务状态轮询或队列调度，可以由大仓自己的 worker 系统调用同一个 `train_model()` 入口。
+Python 训练入口是同步函数。如果调用方需要后台任务、任务状态轮询或队列调度，可以使用 HTTP API 已提供的异步训练任务，也可以由外部系统自己的 worker 调用同一个 `train_model()` 入口。
+
+## HTTP API 使用方式
+
+HTTP API 是现有 Python 接口的 FastAPI 包装层，适合前端或本机服务通过 HTTP 调用训练和推理能力。
+
+开发期启动：
+
+```powershell
+$env:PYTHONPATH="src"
+.\.venv\Scripts\python.exe -m traingluonts.api.server
+```
+
+如果项目已安装到当前环境，也可以使用脚本入口：
+
+```powershell
+traingluonts-api
+```
+
+默认监听：
+
+```text
+http://127.0.0.1:8000
+```
+
+主要接口：
+
+- `GET /api/v1/health`
+- `GET /api/v1/version`
+- `POST /api/v1/train`
+- `POST /api/v1/train/jobs`
+- `GET /api/v1/train/jobs/{job_id}`
+- `POST /api/v1/predict`
+- `POST /api/v1/predict-with-model`
+- `POST /api/v1/models/load-check`
+- `GET /api/v1/models/{model_id}/load-check`
+
+HTTP 请求结构和响应格式见 `docs/http_api.md`。
 
 ## 建议项目结构
 
@@ -115,11 +161,14 @@ TrainGluonTS/
       registry.py         # 本地模型路径、metadata 管理
       errors.py           # 模块内专用异常
       testing.py          # 测试和示例使用的合成数据生成工具
+      api/                # FastAPI HTTP 包装层
       cli/                # 二进制和命令行入口
       packaging/          # PyInstaller 构建包装
   examples/
     basic_gluonts_usage.py
     train_via_module.py
+    predict_via_module.py
+    binary_cli_job/
   artifacts/
     models/
       {model_id}/
@@ -414,7 +463,7 @@ def predict_with_model(model_path: str | Path, dataset: DatasetSpec) -> Predicti
 - [x] 防止运行产物写到配置的 artifact 根目录之外。
 - [x] 添加一个通过模块入口训练的示例脚本。
 - [x] 添加参数校验、数据集转换、最小训练流程的测试。
-- [x] 保持本模块不引入 HTTP/FastAPI，除非大仓后续明确需要适配层。
+- [x] 提供 HTTP/FastAPI 适配层，并保持训练、推理核心逻辑复用 Python API。
 
 ## 推理实现自查清单
 
