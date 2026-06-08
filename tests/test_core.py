@@ -115,6 +115,18 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(len(dataset.series[1].target), 90)
         self.assertEqual(len(dataset.series[2].target), 90)
 
+    def test_evaluation_num_workers_defaults_to_zero(self) -> None:
+        request = TrainingRequest.model_validate(generate_training_request())
+
+        self.assertEqual(request.evaluation.num_workers, 0)
+
+    def test_evaluation_num_workers_must_not_be_negative(self) -> None:
+        request = generate_training_request()
+        request["evaluation"]["num_workers"] = -1
+
+        with self.assertRaises(ValueError):
+            TrainingRequest.model_validate(request)
+
     def test_estimator_factory_supports_two_models(self) -> None:
         for algorithm in ["deepar", "simple_feedforward"]:
             with self.subTest(algorithm=algorithm):

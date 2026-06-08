@@ -25,6 +25,7 @@
     "enabled": true,
     "test_length": 7,
     "num_samples": 20,
+    "num_workers": 0,
     "quantiles": [0.1, 0.5, 0.9]
   },
   "hyperparameters": {

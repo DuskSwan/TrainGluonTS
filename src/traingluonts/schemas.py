@@ -122,6 +122,7 @@ class EvaluationSettings(BaseModel):
     enabled: bool = True
     test_length: int | None = Field(default=None, gt=0)
     num_samples: int = Field(default=100, gt=0)
+    num_workers: int = Field(default=0, ge=0)
     quantiles: list[float] = Field(default_factory=lambda: [0.1, 0.5, 0.9])
 
     @field_validator("quantiles")

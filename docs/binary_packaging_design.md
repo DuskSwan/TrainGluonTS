@@ -142,7 +142,8 @@ traingluonts train --input train_request.json --output train_result.json
   },
   "evaluation": {
     "enabled": true,
-    "test_length": 3
+    "test_length": 3,
+    "num_workers": 0
   },
   "hyperparameters": {
     "context_length": 28,

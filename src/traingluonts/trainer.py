@@ -132,7 +132,10 @@ def _evaluate(
     forecasts = list(forecast_it)
     time_series = list(ts_it)
 
-    evaluator = Evaluator(quantiles=request.evaluation.quantiles)
+    evaluator = Evaluator(
+        quantiles=request.evaluation.quantiles,
+        num_workers=request.evaluation.num_workers,
+    )
     aggregate_metrics, _ = evaluator(time_series, forecasts)
 
     metric_names = ["MASE", "MAPE", "RMSE", "mean_wQuantileLoss"]

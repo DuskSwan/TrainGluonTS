@@ -95,6 +95,7 @@ def generate_training_request(
             "enabled": True,
             "test_length": prediction_length,
             "num_samples": 20,
+            "num_workers": 0,
             "quantiles": [0.1, 0.5, 0.9],
         },
         "hyperparameters": hyperparameters,

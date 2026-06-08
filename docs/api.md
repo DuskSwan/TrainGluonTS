@@ -166,6 +166,7 @@ def train_model(request: TrainingRequest | dict) -> TrainingResult:
 | `enabled` | `bool` | 否 | `True` | 是否启用 holdout 评估 |
 | `test_length` | `int \| None` | 否 | `None` | 测试集长度；未传时使用 `prediction_length` |
 | `num_samples` | `int` | 否 | `100` | 评估预测采样数，必须大于 0 |
+| `num_workers` | `int` | 否 | `0` | 评估指标计算使用的 worker 数；`0` 表示单进程 |
 | `quantiles` | `list[float]` | 否 | `[0.1, 0.5, 0.9]` | 评估分位数，值必须在 0 到 1 之间 |
 
 如果 `evaluation.enabled=True`，每条 `target` 长度必须大于 `test_length`。如果 `evaluation.enabled=False`，每条 `target` 长度必须至少为 `prediction_length`。
@@ -234,6 +235,7 @@ result = train_model(
             "enabled": True,
             "test_length": 3,
             "num_samples": 100,
+            "num_workers": 0,
             "quantiles": [0.1, 0.5, 0.9],
         },
         "hyperparameters": {
@@ -271,6 +273,7 @@ result = train_model(
         "evaluation": {
             "enabled": True,
             "test_length": 14,
+            "num_workers": 0,
         },
         "hyperparameters": {
             "context_length": 28,
@@ -642,6 +645,7 @@ training_request = {
     "evaluation": {
         "enabled": True,
         "test_length": 3,
+        "num_workers": 0,
     },
     "hyperparameters": {
         "context_length": 3,

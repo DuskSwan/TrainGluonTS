@@ -165,6 +165,7 @@ http://127.0.0.1:8000
     "enabled": true,
     "test_length": 7,
     "num_samples": 20,
+    "num_workers": 0,
     "quantiles": [0.1, 0.5, 0.9]
   },
   "hyperparameters": {
@@ -226,7 +227,8 @@ http://127.0.0.1:8000
     },
     "evaluation": {
       "enabled": true,
-      "test_length": 7
+      "test_length": 7,
+      "num_workers": 0
     },
     "hyperparameters": {
       "context_length": 14,
@@ -404,4 +406,3 @@ HTTP 接口不能返回 Python predictor 对象，因此只提供可加载性检
 5. 调 POST /api/v1/predict 执行推理。
 6. 展示 forecasts 中的 mean 和 quantiles。
 ```
-

@@ -43,6 +43,7 @@ docs/binary_packaging_usage.md
 - [x] 支持 `deepar` 和 `simple_feedforward` 两种模型。
 - [x] 支持两种模型各自独立的超参数。
 - [x] 支持训练集/测试集拆分和 holdout 评估。
+- [x] 支持配置评估指标计算的 `num_workers`，默认单进程运行。
 - [x] 支持保存 predictor、训练请求、评估指标和 metadata。
 - [x] 支持通过 `model_id + artifact_root` 推理。
 - [x] 支持通过 `model_path` 推理。
@@ -98,6 +99,7 @@ result = train_model(
         "evaluation": {
             "enabled": True,
             "test_length": 14,
+            "num_workers": 0,
         },
     }
 )
@@ -277,7 +279,8 @@ def predict_with_model(model_path: str | Path, dataset: DatasetSpec) -> Predicti
   },
   "evaluation": {
     "enabled": true,
-    "test_length": 14
+    "test_length": 14,
+    "num_workers": 0
   }
 }
 ```

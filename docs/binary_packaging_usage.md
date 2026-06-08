@@ -207,7 +207,8 @@ examples/binary_cli_job/
   },
   "evaluation": {
     "enabled": true,
-    "test_length": 7
+    "test_length": 7,
+    "num_workers": 0
   },
   "hyperparameters": {
     "context_length": 14,
