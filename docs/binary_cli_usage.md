@@ -76,6 +76,32 @@ dist/
 | `--output` | 否 | 输出 JSON 文件路径；不传则输出到 stdout |
 | `--pretty` | 否 | 格式化 JSON 输出，方便人工查看 |
 
+## 版本接口
+
+版本接口用于检查二进制程序是否能正常启动，以及确认当前程序版本。
+
+命令：
+
+```bash
+./dist/traingluonts/traingluonts version --pretty
+```
+
+成功响应：
+
+```json
+{
+  "ok": true,
+  "version": "0.1.0"
+}
+```
+
+字段说明：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `ok` | `boolean` | 是否成功 |
+| `version` | `string` | TrainGluonTS 包版本 |
+
 ## 推荐目录结构
 
 前端或外部进程可以按下面的方式组织一次任务：
@@ -148,6 +174,25 @@ edge_job/data/train_series.csv
 ```
 
 ## 训练请求
+
+训练接口会读取请求 JSON 和 CSV 数据，完成模型训练、按需评估，并把模型产物写入 `artifact_root`。
+
+命令：
+
+```bash
+./dist/traingluonts/traingluonts train \
+  --input edge_job/train_request.json \
+  --output edge_job/results/train_result.json \
+  --pretty
+```
+
+命令参数：
+
+| 参数 | 必填 | 说明 |
+| --- | --- | --- |
+| `--input` | 是 | 训练请求 JSON 文件路径 |
+| `--output` | 否 | 训练结果 JSON 文件路径；不传则输出到 stdout |
+| `--pretty` | 否 | 格式化 JSON 输出 |
 
 `train_request.json` 示例：
 
@@ -311,6 +356,28 @@ CSV 规则：
 - `result.model_id`
 - `result.model_path`
 
+训练响应字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `ok` | `boolean` | 是否成功 |
+| `result.model_id` | `string` | 训练生成的模型 id |
+| `result.model_name` | `string` | 请求中的模型名称 |
+| `result.algorithm` | `string` | 请求中的模型算法 |
+| `result.status` | `string` | 当前固定为 `completed` |
+| `result.model_path` | `string` | predictor 目录路径，推理时可直接传入 |
+| `result.metadata_path` | `string` | metadata 文件路径 |
+| `result.metrics` | `object` 或 `null` | 开启评估时返回指标；关闭评估时为 `null` |
+
+`metrics` 常见字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `MASE` | Mean Absolute Scaled Error |
+| `MAPE` | Mean Absolute Percentage Error |
+| `RMSE` | Root Mean Squared Error |
+| `mean_wQuantileLoss` | 平均加权分位数损失 |
+
 模型文件会保存在：
 
 ```text
@@ -322,6 +389,25 @@ CSV 规则：
 ```
 
 ## 推理请求
+
+推理接口会加载已保存的 predictor，对输入 CSV 中的历史序列继续预测。
+
+命令：
+
+```bash
+./dist/traingluonts/traingluonts predict \
+  --input edge_job/predict_request.json \
+  --output edge_job/results/predict_result.json \
+  --pretty
+```
+
+命令参数：
+
+| 参数 | 必填 | 说明 |
+| --- | --- | --- |
+| `--input` | 是 | 推理请求 JSON 文件路径 |
+| `--output` | 否 | 推理结果 JSON 文件路径；不传则输出到 stdout |
+| `--pretty` | 否 | 格式化 JSON 输出 |
 
 推荐直接使用训练响应中的 `model_path`：
 
@@ -381,6 +467,45 @@ CSV 规则：
 
 推理 CSV 与训练 CSV 一样使用 long format。推理时 `target` 是历史观测值，模型会从序列末尾继续预测 `prediction_length` 个点。
 
+推理请求顶层字段：
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `dataset` | `object` | 是 | 无 | 待预测数据配置，二进制调用推荐使用 CSV |
+| `model_id` | `string` 或 `null` | 条件必填 | `null` | 模型 id；与 `model_path` 至少传一个 |
+| `model_path` | `string` 或 `null` | 条件必填 | `null` | predictor 路径；与 `model_id` 至少传一个 |
+| `artifact_root` | `string` | 否 | `artifacts/models` | 使用 `model_id` 时的模型根目录 |
+| `freq` | `string` 或 `null` | 条件必填 | `null` | 序列频率；无法从模型旁边的 `request.json` 读取时必须传 |
+| `prediction` | `object` | 否 | 见下表 | 推理参数 |
+
+`model_id` 和 `model_path` 至少需要提供一个。若二者都提供，当前实现优先使用 `model_path` 作为 predictor 路径，返回结果仍保留传入的 `model_id`。
+
+推理 CSV 数据源字段：
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `type` | `string` | 是 | 无 | 固定为 `csv` |
+| `path` | `string` | 是 | 无 | CSV 文件路径，支持相对路径和绝对路径 |
+| `format` | `string` | 否 | `long` | CSV 格式，当前只支持 `long` |
+| `item_id_column` | `string` | 否 | `item_id` | 序列 id 列名；CSV 没有该列时按单序列处理 |
+| `timestamp_column` | `string` | 是 | 无 | 时间戳列名 |
+| `target_column` | `string` | 是 | 无 | 历史观测值列名 |
+
+`prediction` 字段：
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `num_samples` | `integer` | 否 | `100` | 预测采样数，必须大于 0 |
+| `quantiles` | `number[]` | 否 | `[0.1, 0.5, 0.9]` | 输出分位数，每个值必须在 0 到 1 之间 |
+
+推理请求约束：
+
+- `dataset.path` 指向的 CSV 必须存在。
+- `model_path` 指向的 predictor 目录必须存在。
+- 使用 `model_id` 时，实际加载路径是 `{artifact_root}/{model_id}/predictor`。
+- 如果没有同级 `request.json` 可读取训练频率，必须显式传 `freq`。
+- 输出数组长度由模型训练时的 `prediction_length` 决定，不由推理请求单独指定。
+
 ## 推理响应
 
 成功响应示例：
@@ -407,14 +532,23 @@ CSV 规则：
 }
 ```
 
+推理响应字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `ok` | `boolean` | 是否成功 |
+| `result.model_id` | `string` 或 `null` | 请求中传入的模型 id；纯 `model_path` 推理时为 `null` |
+| `result.model_path` | `string` | 实际加载的 predictor 路径 |
+| `result.forecasts` | `object[]` | 预测结果数组，每条输入序列对应一项 |
+
 `forecasts` 中每一项对应一条输入序列：
 
-| 字段 | 说明 |
-| --- | --- |
-| `item_id` | 序列 id |
-| `start_date` | 预测窗口起始时间 |
-| `mean` | 均值预测数组 |
-| `quantiles` | 分位数预测数组，key 为请求中的分位数 |
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `item_id` | `string` 或 `null` | 序列 id |
+| `start_date` | `string` | 预测窗口起始时间 |
+| `mean` | `number[]` | 均值预测数组，长度等于模型训练时的 `prediction_length` |
+| `quantiles` | `object` | 分位数预测数组，key 为请求中的分位数 |
 
 ## 失败响应
 
@@ -440,6 +574,18 @@ CSV 规则：
 | `3` | 训练请求错误 |
 | `4` | 推理请求错误 |
 | `5` | 模型路径或 registry 错误 |
+
+常见错误类型：
+
+| `error.type` | 常见原因 |
+| --- | --- |
+| `CliArgumentError` | 命令行参数不合法 |
+| `CliInputError` | 输入 JSON 文件不存在、无法读取或不是合法 JSON |
+| `TrainingRequestError` | 训练请求字段不合法、CSV 缺列、目标列无法转数值 |
+| `PredictionRequestError` | 推理请求字段不合法，例如未传 `model_id` 或 `model_path` |
+| `ModelRegistryError` | 模型路径不存在或无法加载 |
+| `ModelTrainingError` | 训练、评估或模型保存过程失败 |
+| `ModelPredictionError` | 推理执行过程失败 |
 
 前端或外部进程建议处理流程：
 
