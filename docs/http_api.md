@@ -43,7 +43,7 @@ http://127.0.0.1:8012
 | `TRAINGLUONTS_API_ARTIFACT_ROOT` | `artifacts/models` | 默认模型根目录 |
 | `TRAINGLUONTS_API_DATA_ROOT` | `data` | 相对 CSV 路径的默认根目录 |
 | `TRAINGLUONTS_API_ALLOW_ABSOLUTE_PATHS` | `true` | 是否允许前端传绝对路径 |
-| `TRAINGLUONTS_API_CORS_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | CORS 允许来源，逗号分隔 |
+| `TRAINGLUONTS_API_CORS_ORIGINS` | `http://localhost:80,http://127.0.0.1:80` | CORS 允许来源，逗号分隔 |
 
 ## 通用响应
 

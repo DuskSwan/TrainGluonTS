@@ -22,8 +22,8 @@ class ApiSettings:
     allow_absolute_paths: bool = True
     cors_origins: list[str] = field(
         default_factory=lambda: [
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
+            "http://localhost:80",
+            "http://127.0.0.1:80",
         ]
     )
 
@@ -48,8 +48,8 @@ def load_settings() -> ApiSettings:
             _split_csv(cors_origins)
             if cors_origins is not None
             else [
-                "http://localhost:3000",
-                "http://127.0.0.1:3000",
+                "http://localhost:80",
+                "http://127.0.0.1:80",
             ]
         ),
     )
