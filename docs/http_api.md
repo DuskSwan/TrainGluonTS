@@ -32,6 +32,8 @@ traingluonts-api
 http://127.0.0.1:8012
 ```
 
+下文 curl 示例默认服务地址为 `http://127.0.0.1:8012`。示例使用 Bash/Git Bash 换行写法；如果在 Windows PowerShell 中 `curl` 被别名占用，请使用 `curl.exe`。
+
 可用环境变量：
 
 | 环境变量 | 默认值 | 说明 |
@@ -108,6 +110,12 @@ http://127.0.0.1:8012
 
 ### GET `/api/v1/health`
 
+curl：
+
+```bash
+curl -s http://127.0.0.1:8012/api/v1/health
+```
+
 响应：
 
 ```json
@@ -120,6 +128,12 @@ http://127.0.0.1:8012
 ```
 
 ### GET `/api/v1/version`
+
+curl：
+
+```bash
+curl -s http://127.0.0.1:8012/api/v1/version
+```
 
 响应：
 
@@ -173,6 +187,45 @@ http://127.0.0.1:8012
     "hidden_dimensions": [32, 32]
   }
 }
+```
+
+curl：
+
+```bash
+curl -s -X POST http://127.0.0.1:8012/api/v1/train \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model_name": "frontend_sales_demo",
+    "algorithm": "simple_feedforward",
+    "freq": "D",
+    "prediction_length": 7,
+    "artifact_root": "artifacts/models",
+    "dataset": {
+      "type": "csv",
+      "path": "D:/data/train_series.csv",
+      "format": "long",
+      "item_id_column": "item_id",
+      "timestamp_column": "timestamp",
+      "target_column": "target"
+    },
+    "training": {
+      "max_epochs": 1,
+      "batch_size": 3,
+      "num_batches_per_epoch": 1,
+      "accelerator": "cpu"
+    },
+    "evaluation": {
+      "enabled": true,
+      "test_length": 7,
+      "num_samples": 20,
+      "num_workers": 0,
+      "quantiles": [0.1, 0.5, 0.9]
+    },
+    "hyperparameters": {
+      "context_length": 14,
+      "hidden_dimensions": [32, 32]
+    }
+  }'
 ```
 
 响应：
@@ -238,6 +291,43 @@ http://127.0.0.1:8012
 }
 ```
 
+curl：
+
+```bash
+curl -s -X POST http://127.0.0.1:8012/api/v1/train/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "request": {
+      "model_name": "frontend_sales_demo",
+      "algorithm": "simple_feedforward",
+      "freq": "D",
+      "prediction_length": 7,
+      "artifact_root": "artifacts/models",
+      "dataset": {
+        "type": "csv",
+        "path": "D:/data/train_series.csv",
+        "timestamp_column": "timestamp",
+        "target_column": "target"
+      },
+      "training": {
+        "max_epochs": 1,
+        "batch_size": 3,
+        "num_batches_per_epoch": 1,
+        "accelerator": "cpu"
+      },
+      "evaluation": {
+        "enabled": true,
+        "test_length": 7,
+        "num_workers": 0
+      },
+      "hyperparameters": {
+        "context_length": 14,
+        "hidden_dimensions": [32, 32]
+      }
+    }
+  }'
+```
+
 响应：
 
 ```json
@@ -255,6 +345,12 @@ http://127.0.0.1:8012
 ```
 
 ### GET `/api/v1/train/jobs/{job_id}`
+
+curl：
+
+```bash
+curl -s http://127.0.0.1:8012/api/v1/train/jobs/4d8f6d24b6a64f43a6efca45de3b80b9
+```
 
 完成响应：
 
@@ -306,6 +402,29 @@ http://127.0.0.1:8012
 }
 ```
 
+curl：
+
+```bash
+curl -s -X POST http://127.0.0.1:8012/api/v1/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model_id": "model_20260608_100000_ab12cd",
+    "artifact_root": "artifacts/models",
+    "dataset": {
+      "type": "csv",
+      "path": "D:/data/predict_series.csv",
+      "format": "long",
+      "item_id_column": "item_id",
+      "timestamp_column": "timestamp",
+      "target_column": "target"
+    },
+    "prediction": {
+      "num_samples": 100,
+      "quantiles": [0.1, 0.5, 0.9]
+    }
+  }'
+```
+
 响应：
 
 ```json
@@ -353,6 +472,27 @@ http://127.0.0.1:8012
 }
 ```
 
+curl：
+
+```bash
+curl -s -X POST http://127.0.0.1:8012/api/v1/predict-with-model \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model_path": "D:/models/model_20260608_100000_ab12cd/predictor",
+    "freq": "D",
+    "dataset": {
+      "type": "csv",
+      "path": "D:/data/predict_series.csv",
+      "timestamp_column": "timestamp",
+      "target_column": "target"
+    },
+    "prediction": {
+      "num_samples": 100,
+      "quantiles": [0.5]
+    }
+  }'
+```
+
 如果 predictor 旁边存在训练时保存的 `request.json`，`freq` 可以省略；如果没有，则必须显式传入。
 
 ## 模型加载检查
@@ -370,12 +510,33 @@ HTTP 接口不能返回 Python predictor 对象，因此只提供可加载性检
 }
 ```
 
+curl：
+
+```bash
+curl -s -X POST http://127.0.0.1:8012/api/v1/models/load-check \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model_id": "model_20260608_100000_ab12cd",
+    "artifact_root": "artifacts/models"
+  }'
+```
+
 使用 `model_path`：
 
 ```json
 {
   "model_path": "D:/models/model_20260608_100000_ab12cd/predictor"
 }
+```
+
+curl：
+
+```bash
+curl -s -X POST http://127.0.0.1:8012/api/v1/models/load-check \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model_path": "D:/models/model_20260608_100000_ab12cd/predictor"
+  }'
 ```
 
 响应：
@@ -395,6 +556,12 @@ HTTP 接口不能返回 Python predictor 对象，因此只提供可加载性检
 ### GET `/api/v1/models/{model_id}/load-check`
 
 使用默认 `TRAINGLUONTS_API_ARTIFACT_ROOT` 检查模型。
+
+curl：
+
+```bash
+curl -s http://127.0.0.1:8012/api/v1/models/model_20260608_100000_ab12cd/load-check
+```
 
 ## 前端推荐流程
 
