@@ -6,16 +6,16 @@
 
 1. 通用 CLI 二进制，用于离线训练、离线推理和查看版本，内部复用现有 Python 接口：
 
-- 训练：`traingluonts train`
-- 推理：`traingluonts predict`
-- 查看版本：`traingluonts version`
+   - 训练：`traingluonts train`
+   - 推理：`traingluonts predict`
+   - 查看版本：`traingluonts version`
 
 2. 数据分析工作流节点二进制，只用于工作流中的模型推理：
 
-- 程序名：`traingluonts-workflow-node`
-- 通信方式：ZeroMQ 非 Multipart，平台使用 REQ，节点使用 REP
-- 能力范围：只做推理，不提供训练接口
-- 输出格式：返回 `code/message/data`，`data` 中只包含预测结果
+   - 程序名：`traingluonts-workflow-node`
+   - 通信方式：ZeroMQ 非 Multipart，平台使用 REQ，节点使用 REP
+   - 能力范围：只做推理，不提供训练接口
+   - 输出格式：返回 `code/message/data`，`data` 中只包含预测结果
 
 二进制程序不提供 HTTP 服务，也不把训练好的模型打进程序本体。CLI 训练产生的模型仍保存在请求参数指定的本地 `artifact_root` 目录下；工作流节点运行时通过平台注入的 `--model-path` 加载已发布模型。
 
