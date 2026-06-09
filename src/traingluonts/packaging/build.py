@@ -14,6 +14,12 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the packaging command parser."""
     parser = argparse.ArgumentParser(prog="python -m traingluonts.packaging.build")
     parser.add_argument(
+        "--target",
+        choices=["cli", "workflow-node"],
+        default="cli",
+        help="entrypoint target to package",
+    )
+    parser.add_argument(
         "--mode",
         choices=["onedir", "onefile"],
         default="onedir",
@@ -21,7 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--name",
-        default="traingluonts",
+        default=None,
         help="binary executable name",
     )
     parser.add_argument(
@@ -56,7 +62,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     repo_root = Path(__file__).resolve().parents[3]
     source_root = repo_root / "src"
-    entrypoint = source_root / "traingluonts" / "cli" / "main.py"
+    entrypoint = _entrypoint_for_target(args.target, source_root)
+    name = args.name or _default_name_for_target(args.target)
     output_dir = _root_relative(args.output_dir, repo_root)
     build_dir = _root_relative(args.build_dir, repo_root)
 
@@ -66,7 +73,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "PyInstaller",
         "--noconfirm",
         "--name",
-        args.name,
+        name,
         "--distpath",
         str(output_dir),
         "--workpath",
@@ -100,6 +107,22 @@ def _collect_submodule_options() -> list[str]:
     return options
 
 
+def _entrypoint_for_target(target: str, source_root: Path) -> Path:
+    if target == "cli":
+        return source_root / "traingluonts" / "cli" / "main.py"
+    if target == "workflow-node":
+        return source_root / "traingluonts" / "workflow_node" / "main.py"
+    raise ValueError(f"unsupported package target: {target}")
+
+
+def _default_name_for_target(target: str) -> str:
+    if target == "cli":
+        return "traingluonts"
+    if target == "workflow-node":
+        return "traingluonts-workflow-node"
+    raise ValueError(f"unsupported package target: {target}")
+
+
 def _root_relative(path: str, repo_root: Path) -> Path:
     value = Path(path).expanduser()
     if value.is_absolute():
@@ -109,4 +132,3 @@ def _root_relative(path: str, repo_root: Path) -> Path:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

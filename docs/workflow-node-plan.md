@@ -57,7 +57,8 @@ traingluonts-workflow-node = "traingluonts.workflow_node.main:main"
 
 ```bash
 --target_name <输入数据中的目标值字段>
---timestamp_name <输入数据中的时间字段>
+--timestamp_name <输入数据中的时间字段，可选>
+--start_time <无时间字段时使用的虚拟起始时间，可选，默认 1970-01-01 00:00:00>
 --item_id_name <输入数据中的序列 ID 字段，可选>
 --freq <GluonTS 频率，可选>
 --num_samples <采样数量，可选，默认 100>
@@ -69,6 +70,7 @@ traingluonts-workflow-node = "traingluonts.workflow_node.main:main"
 ```bash
 --target-name
 --timestamp-name
+--start-time
 --item-id-name
 --num-samples
 --output-name
@@ -102,6 +104,7 @@ traingluonts-workflow-node = "traingluonts.workflow_node.main:main"
 - `data` 中每个元素必须是 object。
 - 每行必须包含 `--target_name` 指定字段。
 - 如果指定了 `--timestamp_name`，第一行必须包含该字段，用于构造序列起始时间。
+- 如果未指定 `--timestamp_name`，使用 `--start_time` 作为虚拟序列起点。
 - 如果未指定 `--item_id_name`，默认把整批数据视为单条序列 `series_0`。
 - 如果指定 `--item_id_name`，按该字段分组，分别构造多条序列。
 
@@ -227,7 +230,7 @@ traingluonts-workflow-node \
   --freq min
 ```
 
-## 暂不实现
+## 不实现
 
 - Multipart / DEALER / ROUTER 流式响应。
 - 训练能力。
