@@ -10,23 +10,24 @@ TrainGluonTS 是一个用于 **训练和推理** GluonTS 时间序列预测模�
 
 - **Python API**：核心集成方式，外部 Python 项目可以直接调用 `train_model()` 和 `predict()`。
 - **HTTP/FastAPI API**：面向前端或本机服务调用方的包装层，复用同一套训练、推理和模型加载逻辑。
-- **CLI/二进制入口**：面向边端或非 Python 调用方，通过 JSON 请求文件和 CSV 数据文件执行训练、推理和版本检查。
+- **CLI/二进制入口**：面向边端或非 Python 调用方，支持离线 JSON/CSV 命令调用，也支持工作流二进制推理节点。
 
 三种入口共享同一套 schema、数据转换、训练、推理和错误处理逻辑。Python API 是核心业务实现，HTTP API 和 CLI 是适配层。
 
 完整接口文档见：
 
 ```text
-docs/api.md
-docs/http_api.md
+docs/api-plan.md
+docs/api-developer-usage.md
+docs/api-frontend-integration.md
 ```
 
 二进制 CLI 和打包说明见：
 
 ```text
-docs/binary_packaging_design.md
-docs/binary_packaging_usage.md
-docs/binary_cli_usage.md
+docs/binary-plan.md
+docs/binary-developer-usage.md
+docs/binary-frontend-integration.md
 ```
 
 ## 当前能力检查
@@ -50,6 +51,7 @@ docs/binary_cli_usage.md
 - [x] 支持通过 `model_path` 推理。
 - [x] 支持推理均值和分位数输出。
 - [x] 支持二进制 CLI 包装入口 `version/train/predict`。
+- [x] 支持工作流二进制推理节点 `traingluonts-workflow-node`。
 - [x] 支持 PyInstaller 打包包装脚本。
 - [x] 支持 `traingluonts-api` 服务启动脚本。
 - [x] 支持最小训练流程测试。
@@ -148,7 +150,7 @@ http://127.0.0.1:8012
 - `POST /api/v1/models/load-check`
 - `GET /api/v1/models/{model_id}/load-check`
 
-HTTP 请求结构和响应格式见 `docs/http_api.md`。
+HTTP 请求结构和响应格式见 `docs/api-frontend-integration.md`。
 
 ## 建议项目结构
 

@@ -1,4 +1,11 @@
-# 工作流二进制推理节点开发计划
+# 二进制包路线开发计划
+
+本文档记录 TrainGluonTS 二进制包路线的定位、边界和开发计划。二进制包路线分为两类入口：
+
+- 通用 CLI 二进制：用于离线训练、离线推理和版本检查，入口为 `traingluonts`。
+- 工作流节点二进制：用于平台数据分析工作流中的推理节点，入口为 `traingluonts-workflow-node`。
+
+通用 CLI 已经实现并保持兼容；以下计划重点记录工作流节点二进制的新增和维护事项。
 
 ## 目标
 
@@ -84,7 +91,7 @@ traingluonts-workflow-node = "traingluonts.workflow_node.main:main"
 
 ## 输入协议
 
-节点接收平台发送的 JSON 字符串，格式遵循 `docs/binary-workflow-node-doc.md`：
+节点接收平台发送的 JSON 字符串，格式遵循 `docs/binary-frontend-integration.md` 中的工作流节点协议：
 
 ```json
 {

@@ -1,4 +1,4 @@
-# TrainGluonTS HTTP API 文档
+# API 前端对接说明
 
 本文档面向前端调用方，说明 TrainGluonTS FastAPI 服务的启动方式、接口路径、请求结构和响应结构。
 

@@ -1,4 +1,4 @@
-# Linux 二进制打包与使用手册
+# 二进制包开发者使用说明
 
 本文档说明如何在 Linux/Ubuntu 系统上将 TrainGluonTS 打包成可执行程序，以及打包产物如何在边端或外部进程中调用。
 
@@ -19,10 +19,10 @@
 
 二进制程序不提供 HTTP 服务，也不把训练好的模型打进程序本体。CLI 训练产生的模型仍保存在请求参数指定的本地 `artifact_root` 目录下；工作流节点运行时通过平台注入的 `--model-path` 加载已发布模型。
 
-如果已经拿到二进制包，只需要了解如何调用 `version/train/predict`，请看面向前端和外部进程的运行时说明：
+如果已经拿到二进制包，只需要了解如何调用 `version/train/predict` 或接入工作流节点，请看面向前端和外部进程的运行时说明：
 
 ```text
-docs/binary_cli_usage.md
+docs/binary-frontend-integration.md
 ```
 
 ## 构建前准备

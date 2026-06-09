@@ -1,4 +1,4 @@
-# TrainGluonTS 接口文档
+# API 开发者使用说明
 
 本文档面向外部 Python 项目调用方，说明 TrainGluonTS 当前公开接口的使用方式、输入输出结构、字段是否必填，以及常见异常。
 
