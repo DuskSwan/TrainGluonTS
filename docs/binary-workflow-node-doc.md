@@ -28,6 +28,13 @@
 --model-path <已发布模型路径>
 ```
 
+此外还可以自行添加参数，如
+
+```bash
+--target_name v1
+--timeout 30
+```
+
 第三方程序需要实现：
 
 1. 解析 `--zmq-endpoint`、`--zmq-protocol`、可选的 `--model-path`。
