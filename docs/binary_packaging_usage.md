@@ -2,13 +2,22 @@
 
 本文档说明如何在 Linux/Ubuntu 系统上将 TrainGluonTS 打包成可执行程序，以及打包产物如何在边端或外部进程中调用。
 
-本项目的二进制入口本质上是一个 CLI 包装层，内部复用现有 Python 接口：
+本项目目前支持两类二进制入口：
+
+1. 通用 CLI 二进制，用于离线训练、离线推理和查看版本，内部复用现有 Python 接口：
 
 - 训练：`traingluonts train`
 - 推理：`traingluonts predict`
 - 查看版本：`traingluonts version`
 
-二进制程序不提供 HTTP 服务，也不把训练好的模型打进程序本体。模型仍保存在请求参数指定的本地 `artifact_root` 目录下。
+2. 数据分析工作流节点二进制，只用于工作流中的模型推理：
+
+- 程序名：`traingluonts-workflow-node`
+- 通信方式：ZeroMQ 非 Multipart，平台使用 REQ，节点使用 REP
+- 能力范围：只做推理，不提供训练接口
+- 输出格式：返回 `code/message/data`，`data` 中只包含预测结果
+
+二进制程序不提供 HTTP 服务，也不把训练好的模型打进程序本体。CLI 训练产生的模型仍保存在请求参数指定的本地 `artifact_root` 目录下；工作流节点运行时通过平台注入的 `--model-path` 加载已发布模型。
 
 如果已经拿到二进制包，只需要了解如何调用 `version/train/predict`，请看面向前端和外部进程的运行时说明：
 
@@ -31,10 +40,10 @@ cd /path/to/TrainGluonTS
 .venv/bin/python -m pip list
 ```
 
-打包至少需要 PyInstaller。推荐同时安装 `orjson`，这样可以避免 GluonTS 启动时输出 JSON 处理相关 warning。
+打包至少需要 PyInstaller。工作流节点还需要 `pyzmq`，项目依赖中已经包含；推荐同时安装 `orjson`，这样可以避免 GluonTS 启动时输出 JSON 处理相关 warning。
 
 ```bash
-.venv/bin/python -m pip install pyinstaller orjson
+.venv/bin/python -m pip install pyinstaller pyzmq orjson
 ```
 
 如果按项目可选依赖安装，也可以使用：
@@ -53,12 +62,31 @@ cd /path/to/TrainGluonTS
 PYTHONPATH=src .venv/bin/python -m traingluonts.packaging.build --mode onedir --clean
 ```
 
+上面命令默认打包通用 CLI 二进制，等价于：
+
+```bash
+PYTHONPATH=src .venv/bin/python -m traingluonts.packaging.build \
+  --target cli \
+  --mode onedir \
+  --clean
+```
+
+如果要打包工作流节点二进制，使用：
+
+```bash
+PYTHONPATH=src .venv/bin/python -m traingluonts.packaging.build \
+  --target workflow-node \
+  --mode onedir \
+  --clean
+```
+
 参数说明：
 
 | 参数 | 默认值 | 说明 |
 | --- | --- | --- |
+| `--target` | `cli` | 打包目标，可选 `cli` 或 `workflow-node` |
 | `--mode` | `onedir` | 打包模式，可选 `onedir` 或 `onefile` |
-| `--name` | `traingluonts` | 输出程序名称 |
+| `--name` | 按目标决定 | 输出程序名称；`cli` 默认 `traingluonts`，`workflow-node` 默认 `traingluonts-workflow-node` |
 | `--clean` | `false` | 构建前清理 PyInstaller 缓存 |
 | `--output-dir` | `dist` | 构建产物目录 |
 | `--build-dir` | `build/pyinstaller` | PyInstaller 中间文件目录 |
@@ -77,6 +105,18 @@ dist/
 
 部署到 Ubuntu 机器时，需要整体复制 `dist/traingluonts/` 目录，而不是只复制里面的 `traingluonts` 文件。
 
+工作流节点 `onedir` 产物位于：
+
+```text
+dist/
+  traingluonts-workflow-node/
+    traingluonts-workflow-node
+    _internal/
+      ...
+```
+
+部署工作流节点时，同样需要整体复制 `dist/traingluonts-workflow-node/` 目录。
+
 ## 单文件模式
 
 如果确实需要单个可执行文件，可以使用 `onefile`：
@@ -85,11 +125,27 @@ dist/
 PYTHONPATH=src .venv/bin/python -m traingluonts.packaging.build --mode onefile --clean
 ```
 
+工作流节点 `onefile`：
+
+```bash
+PYTHONPATH=src .venv/bin/python -m traingluonts.packaging.build \
+  --target workflow-node \
+  --mode onefile \
+  --clean
+```
+
 成功后 Linux `onefile` 产物通常位于：
 
 ```text
 dist/
   traingluonts
+```
+
+工作流节点 `onefile` 产物通常位于：
+
+```text
+dist/
+  traingluonts-workflow-node
 ```
 
 注意：`onefile` 会把 Python 运行时和 Python 包依赖打进一个可执行文件，但运行时仍依赖目标 Linux 系统的基础系统库和 CPU 架构兼容性，例如 `glibc`。同时 `onefile` 启动时需要解压临时运行目录，启动速度通常比 `onedir` 慢。
@@ -136,6 +192,46 @@ dist/
   --collect-submodules pytorch_lightning \
   --collect-submodules torchmetrics \
   src/traingluonts/cli/main.py
+```
+
+工作流节点 `onedir`：
+
+```bash
+.venv/bin/python -m PyInstaller \
+  --noconfirm \
+  --clean \
+  --onedir \
+  --name traingluonts-workflow-node \
+  --distpath dist \
+  --workpath build/pyinstaller \
+  --specpath build/pyinstaller \
+  --paths src \
+  --collect-data gluonts \
+  --collect-submodules gluonts \
+  --collect-submodules lightning \
+  --collect-submodules pytorch_lightning \
+  --collect-submodules torchmetrics \
+  src/traingluonts/workflow_node/main.py
+```
+
+工作流节点 `onefile`：
+
+```bash
+.venv/bin/python -m PyInstaller \
+  --noconfirm \
+  --clean \
+  --onefile \
+  --name traingluonts-workflow-node \
+  --distpath dist \
+  --workpath build/pyinstaller \
+  --specpath build/pyinstaller \
+  --paths src \
+  --collect-data gluonts \
+  --collect-submodules gluonts \
+  --collect-submodules lightning \
+  --collect-submodules pytorch_lightning \
+  --collect-submodules torchmetrics \
+  src/traingluonts/workflow_node/main.py
 ```
 
 其中最关键的是：
@@ -190,6 +286,159 @@ torch/cuda/__init__.py:1074: UserWarning: Can't initialize NVML
 ```
 
 通常表示当前机器没有可用的 NVIDIA/NVML 环境。CPU 训练和推理一般不受影响。
+
+工作流节点可以先验证命令行参数是否正常：
+
+`onedir`：
+
+```bash
+./dist/traingluonts-workflow-node/traingluonts-workflow-node --help
+```
+
+`onefile`：
+
+```bash
+./dist/traingluonts-workflow-node --help
+```
+
+预期能看到 `--zmq-endpoint`、`--zmq-protocol`、`--model-path`、`--target_name`、`--freq` 等参数。
+
+## 工作流节点二进制使用方式
+
+工作流节点二进制面向平台“AI数据分析二进制”自定义节点使用。它不是一次性命令行推理工具，而是被平台启动后常驻运行，通过 ZeroMQ 接收上游数据并返回预测结果。
+
+平台节点建议配置：
+
+| 配置项 | 建议值 |
+| --- | --- |
+| 可执行文件路径 | `dist/traingluonts-workflow-node/traingluonts-workflow-node` 或部署后的绝对路径 |
+| 进程运行目录 | 部署目录或包含模型/配置文件的工作目录 |
+| Multipart 模式 | 关闭 |
+| 是否需要模型 | 开启 |
+| 启动等待秒数 | 视模型加载耗时设置，例如 `2` 到 `10` |
+
+平台会自动追加以下托管参数，不要手动写到“启动参数”里：
+
+```bash
+--zmq-endpoint tcp://127.0.0.1:<port>
+--zmq-protocol REQ
+--model-path <已发布模型路径>
+```
+
+开发者需要在“启动参数”里填写字段映射和推理参数，例如：
+
+```bash
+--target_name RF_FWD_PWR \
+--timestamp_name time \
+--freq 30ms \
+--num_samples 50 \
+--output_name predict_value
+```
+
+如果输入数据没有时间字段，可以不传 `--timestamp_name`，节点会使用虚拟起点：
+
+```bash
+--target_name RF_FWD_PWR \
+--start_time "1970-01-01 00:00:00" \
+--freq 50ms
+```
+
+如果一次请求中包含多条序列，可以通过 `--item_id_name` 指定分组字段：
+
+```bash
+--target_name RF_FWD_PWR \
+--item_id_name sensor_id \
+--timestamp_name time \
+--freq 30ms
+```
+
+启动参数说明：
+
+| 参数 | 必填 | 说明 |
+| --- | --- | --- |
+| `--target_name` | 是 | 输入 `data` 行中作为时间序列目标值的字段 |
+| `--timestamp_name` | 否 | 输入 `data` 行中的时间字段；不传时使用 `--start_time` |
+| `--start_time` | 否 | 无时间字段时的虚拟起点，默认 `1970-01-01 00:00:00` |
+| `--item_id_name` | 否 | 分组字段；不传时整批数据视为单条序列 `series_0` |
+| `--freq` | 否 | 时间频率；不传时尝试读取模型目录旁的 `request.json` |
+| `--num_samples` | 否 | 预测采样数，默认 `100`；数值越大均值越稳定但越慢 |
+| `--output_name` | 否 | 输出预测字段名，默认 `predict_value` |
+
+`freq` 必须与训练时保持一致。毫秒级频率可以使用 Pandas/GluonTS 支持的字符串，例如：
+
+```text
+30ms
+50ms
+1s
+5min
+D
+```
+
+平台发送的请求格式：
+
+```json
+{
+  "data": [
+    {
+      "time": "2026-05-25T08:24:00",
+      "sensor_id": "A",
+      "RF_FWD_PWR": 448.47
+    },
+    {
+      "time": "2026-05-25T08:24:00.030",
+      "sensor_id": "A",
+      "RF_FWD_PWR": 447.52
+    }
+  ]
+}
+```
+
+成功响应格式：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "item_id": "A",
+      "step": 1,
+      "predict_value": 451.2
+    },
+    {
+      "item_id": "A",
+      "step": 2,
+      "predict_value": 452.7
+    }
+  ]
+}
+```
+
+错误响应格式：
+
+```json
+{
+  "code": 500,
+  "message": "missing target field: RF_FWD_PWR",
+  "data": {}
+}
+```
+
+工作流节点只返回预测均值，不返回 `quantiles`、`model_path` 或完整 `forecasts` 结构。
+
+本地手工调试时，可以先启动节点：
+
+```bash
+./dist/traingluonts-workflow-node/traingluonts-workflow-node \
+  --zmq-endpoint tcp://127.0.0.1:55555 \
+  --zmq-protocol REQ \
+  --model-path /opt/traingluonts/models/model_20260605_100000_ab12cd/predictor \
+  --target_name RF_FWD_PWR \
+  --timestamp_name time \
+  --freq 30ms
+```
+
+然后用简单的 ZeroMQ REQ 客户端发送 JSON 验证链路。平台正式接入时，`--zmq-endpoint`、`--zmq-protocol` 和 `--model-path` 由平台注入，不需要手动填写。
 
 ## 请求文件组织方式
 
@@ -535,11 +784,14 @@ examples/binary_cli_job/results/predict_result.json
 
 - `onedir` 模式需要整体复制 `dist/traingluonts/` 目录。
 - `onedir` 模式不要只复制 `dist/traingluonts/traingluonts` 文件，否则会缺少 `_internal` 下的依赖文件。
+- 工作流节点 `onedir` 模式需要整体复制 `dist/traingluonts-workflow-node/` 目录。
+- 工作流节点 `onedir` 模式不要只复制 `dist/traingluonts-workflow-node/traingluonts-workflow-node` 文件。
 - `onefile` 模式可以复制单个 `dist/traingluonts` 文件，但启动更慢，排查依赖问题也更困难。
+- 工作流节点 `onefile` 模式可以复制单个 `dist/traingluonts-workflow-node` 文件。
 - 构建产物不能跨平台通用；需要在 Linux x86_64 上构建 Linux x86_64 程序，在 ARM 设备或兼容环境中构建 ARM 程序。
 - 第一版建议只承诺 CPU 运行，GPU 依赖和驱动不包含在二进制包承诺范围内。
 - 模型产物不在二进制包内，训练和推理时由请求 JSON 中的 `artifact_root` 或 `model_path` 指定。
-- 如果部署目录中没有可执行权限，需要执行 `chmod +x dist/traingluonts/traingluonts` 或 `chmod +x dist/traingluonts`。
+- 如果部署目录中没有可执行权限，需要执行 `chmod +x dist/traingluonts/traingluonts`、`chmod +x dist/traingluonts`、`chmod +x dist/traingluonts-workflow-node/traingluonts-workflow-node` 或 `chmod +x dist/traingluonts-workflow-node`。
 
 ## 常见问题
 
