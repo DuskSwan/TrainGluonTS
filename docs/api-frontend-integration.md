@@ -8,6 +8,7 @@
 - `POST /api/v1/predict` 调用 `predict(request)`。
 - `POST /api/v1/predict-with-model` 调用 `predict_with_model(...)`。
 - 模型检查接口调用 `load_model(...)`，只检查是否可加载，不返回 Python predictor 对象。
+- `POST /api/v1/models/publish` 将训练产物复制到发布目录，返回发布后的模型路径。
 
 前端和服务运行在同一台机器上，因此第一版不提供 CSV 文件上传。前端直接在 JSON 中传 CSV 文件路径。
 
@@ -48,7 +49,7 @@ http://127.0.0.1:8012
 
 ## 通用响应
 
-成功：
+大部分接口成功：
 
 ```json
 {
@@ -79,6 +80,8 @@ http://127.0.0.1:8012
 | `422` | HTTP 请求体结构不合法 |
 | `500` | 训练、推理或服务内部错误 |
 
+注意：模型发布接口的业务错误，例如 `model_id` 不存在，会使用 HTTP `200` 返回，并在响应体 `code` 和 `message` 中表达业务状态。
+
 ## 路径规则
 
 请求 JSON 中的路径字段包括：
@@ -86,6 +89,7 @@ http://127.0.0.1:8012
 - `dataset.path`
 - `artifact_root`
 - `model_path`
+- 发布接口的目标路径由 `TRAINGLUONTS_API_PUBLISH_ROOT`、`user_id` 和清洗后的 `version` 自动生成，前端不直接传发布路径。
 
 解析规则：
 
@@ -593,6 +597,18 @@ curl -s http://127.0.0.1:8012/api/v1/models/model_20260608_100000_ab12cd/load-ch
   "model_id": "model_20260608_100000_ab12cd",
   "user_id": 1001,
   "version": "版本1/正式"
+}
+```
+
+模型发布接口使用独立的前端业务响应格式：
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "path": "D:/models/published/1001/v1"
+  }
 }
 ```
 

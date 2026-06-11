@@ -47,6 +47,7 @@ docs/binary-frontend-integration.md
 - [x] 支持训练集/测试集拆分和 holdout 评估。
 - [x] 支持配置评估指标计算的 `num_workers`，默认单进程运行。
 - [x] 支持保存 predictor、训练请求、评估指标和 metadata。
+- [x] 支持 HTTP 模型发布接口，将训练产物复制到用户版本目录。
 - [x] 支持通过 `model_id + artifact_root` 推理。
 - [x] 支持通过 `model_path` 推理。
 - [x] 支持推理均值和分位数输出。
@@ -149,6 +150,7 @@ http://127.0.0.1:8012
 - `POST /api/v1/predict-with-model`
 - `POST /api/v1/models/load-check`
 - `GET /api/v1/models/{model_id}/load-check`
+- `POST /api/v1/models/publish`
 
 HTTP 请求结构和响应格式见 `docs/api-frontend-integration.md`。
 
@@ -182,6 +184,9 @@ TrainGluonTS/
         request.json      # 归一化后的训练请求
         metrics.json      # 评估指标，启用评估时生成
         metadata.json     # 模型 id、状态、时间、路径等元信息
+    published_models/
+      {user_id}/
+        {version}/         # 发布接口复制出的完整模型目录
 ```
 
 `artifacts/` 是运行产物目录，不应该进入版本控制。
