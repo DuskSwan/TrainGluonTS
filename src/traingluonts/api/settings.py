@@ -18,6 +18,7 @@ class ApiSettings:
     host: str = "127.0.0.1"
     port: int = 8012
     artifact_root: Path = Path("artifacts/models")
+    publish_root: Path = Path("artifacts/published_models")
     data_root: Path = Path("data")
     allow_absolute_paths: bool = True
     cors_origins: list[str] = field(
@@ -37,6 +38,12 @@ def load_settings() -> ApiSettings:
         port=int(os.environ.get("TRAINGLUONTS_API_PORT", "8012")),
         artifact_root=Path(
             os.environ.get("TRAINGLUONTS_API_ARTIFACT_ROOT", "artifacts/models")
+        ),
+        publish_root=Path(
+            os.environ.get(
+                "TRAINGLUONTS_API_PUBLISH_ROOT",
+                "artifacts/published_models",
+            )
         ),
         data_root=Path(os.environ.get("TRAINGLUONTS_API_DATA_ROOT", "data")),
         allow_absolute_paths=os.environ.get(

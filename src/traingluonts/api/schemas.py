@@ -59,3 +59,20 @@ class ModelLoadCheckResult(BaseModel):
     model_path: str
     checked_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+
+class ModelPublishRequest(BaseModel):
+    """Request body for publishing a trained model."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    model_id: str
+    user_id: int
+    version: str
+
+
+class ModelPublishResult(BaseModel):
+    """Result returned by model publish endpoint."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    path: str

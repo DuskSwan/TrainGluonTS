@@ -107,11 +107,13 @@ class ApiTests(unittest.TestCase):
 
         self.data_root = self.tmp_root / "data"
         self.artifact_root = self.tmp_root / "models"
+        self.publish_root = self.tmp_root / "published_models"
         self.csv_path = self.data_root / "series.csv"
         self._write_csv_dataset(self.csv_path)
 
         settings = ApiSettings(
             artifact_root=self.artifact_root,
+            publish_root=self.publish_root,
             data_root=self.data_root,
             cors_origins=[],
         )
@@ -252,6 +254,67 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertTrue(response.json()["ok"])
         self.assertEqual(len(response.json()["result"]["forecasts"]), 2)
+
+    def test_publish_model_copies_model_with_sanitized_version(self) -> None:
+        training_result = self._train_model_via_api()
+
+        response = self.client.post(
+            "/api/v1/models/publish",
+            json={
+                "model_id": training_result["model_id"],
+                "user_id": 1001,
+                "version": "版本/正式:v1?",
+            },
+        )
+        payload = response.json()
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(payload["code"], 0)
+        self.assertEqual(payload["message"], "success")
+
+        published_path = Path(payload["data"]["path"])
+        self.assertEqual(published_path.name, "版本_正式_v1")
+        self.assertTrue((published_path / "predictor").exists())
+        self.assertTrue((published_path / "metadata.json").exists())
+        self.assertTrue(published_path.is_absolute())
+
+    def test_publish_model_overwrites_existing_user_version(self) -> None:
+        training_result = self._train_model_via_api()
+        publish_payload = {
+            "model_id": training_result["model_id"],
+            "user_id": 1001,
+            "version": "v1",
+        }
+
+        first = self.client.post("/api/v1/models/publish", json=publish_payload)
+        self.assertEqual(first.status_code, 200, first.text)
+        published_path = Path(first.json()["data"]["path"])
+        metadata_path = published_path / "metadata.json"
+        metadata_path.write_text("stale", encoding="utf-8")
+
+        second = self.client.post("/api/v1/models/publish", json=publish_payload)
+
+        self.assertEqual(second.status_code, 200, second.text)
+        self.assertEqual(second.json()["code"], 0)
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        self.assertEqual(metadata["model_id"], training_result["model_id"])
+        self.assertTrue((published_path / "predictor").exists())
+
+    def test_publish_missing_model_returns_message(self) -> None:
+        response = self.client.post(
+            "/api/v1/models/publish",
+            json={
+                "model_id": "missing_model",
+                "user_id": 1001,
+                "version": "v1",
+            },
+        )
+        payload = response.json()
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(payload["code"], 404)
+        self.assertIn("missing_model", payload["message"])
+        self.assertEqual(payload["data"], {})
 
     def test_missing_csv_returns_unified_error(self) -> None:
         request = self._training_payload()

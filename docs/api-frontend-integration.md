@@ -41,6 +41,7 @@ http://127.0.0.1:8012
 | `TRAINGLUONTS_API_HOST` | `127.0.0.1` | 服务监听地址 |
 | `TRAINGLUONTS_API_PORT` | `8012` | 服务端口 |
 | `TRAINGLUONTS_API_ARTIFACT_ROOT` | `artifacts/models` | 默认模型根目录 |
+| `TRAINGLUONTS_API_PUBLISH_ROOT` | `artifacts/published_models` | 默认模型发布根目录 |
 | `TRAINGLUONTS_API_DATA_ROOT` | `data` | 相对 CSV 路径的默认根目录 |
 | `TRAINGLUONTS_API_ALLOW_ABSOLUTE_PATHS` | `true` | 是否允许前端传绝对路径 |
 | `TRAINGLUONTS_API_CORS_ORIGINS` | `http://localhost:80,http://127.0.0.1:80` | CORS 允许来源，逗号分隔 |
@@ -567,6 +568,68 @@ curl：
 curl -s http://127.0.0.1:8012/api/v1/models/model_20260608_100000_ab12cd/load-check
 ```
 
+## 模型发布
+
+### POST `/api/v1/models/publish`
+
+将训练好的模型复制到发布目录，并用用户 id 与版本号建立稳定路径。源模型只通过 `model_id` 指定，服务会从默认 `TRAINGLUONTS_API_ARTIFACT_ROOT` 查找：
+
+```text
+{TRAINGLUONTS_API_ARTIFACT_ROOT}/{model_id}
+```
+
+发布目标根目录由 `TRAINGLUONTS_API_PUBLISH_ROOT` 配置，默认是 `artifacts/published_models`。目标路径格式为：
+
+```text
+{TRAINGLUONTS_API_PUBLISH_ROOT}/{user_id}/{清洗后的 version}
+```
+
+版本号允许中文。`/`、`\`、`:`、`*`、`?`、`"`、`<`、`>`、`|` 等不适合作为路径片段的字符会被替换为 `_`。如果相同 `user_id + version` 已经发布过，当前实现会覆盖旧发布目录。
+
+请求体：
+
+```json
+{
+  "model_id": "model_20260608_100000_ab12cd",
+  "user_id": 1001,
+  "version": "版本1/正式"
+}
+```
+
+curl：
+
+```bash
+curl -s -X POST http://127.0.0.1:8012/api/v1/models/publish \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model_id": "model_20260608_100000_ab12cd",
+    "user_id": 1001,
+    "version": "版本1/正式"
+  }'
+```
+
+成功响应：
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "path": "D:\\GitRepo\\TrainGluonTS\\artifacts\\published_models\\1001\\版本1_正式"
+  }
+}
+```
+
+如果源模型不存在，HTTP 状态仍为 `200`，错误信息放在 `code` 和 `message`：
+
+```json
+{
+  "code": 404,
+  "message": "model_id not found in artifact root: model_missing",
+  "data": {}
+}
+```
+
 ## 前端推荐流程
 
 ```text
@@ -576,4 +639,5 @@ curl -s http://127.0.0.1:8012/api/v1/models/model_20260608_100000_ab12cd/load-ch
 4. 训练 completed 后保存 model_id 和 model_path。
 5. 调 POST /api/v1/predict 执行推理。
 6. 展示 forecasts 中的 mean 和 quantiles。
+7. 需要发布时，调 POST /api/v1/models/publish，保存返回的 data.path。
 ```
