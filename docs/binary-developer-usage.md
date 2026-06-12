@@ -303,6 +303,87 @@ torch/cuda/__init__.py:1074: UserWarning: Can't initialize NVML
 
 预期能看到 `--zmq-endpoint`、`--zmq-protocol`、`--model-path`、`--target_name`、`--freq` 等参数。
 
+### 工作流节点端到端冒烟验证
+
+如果要确认工作流节点二进制不只是能启动，还能按平台协议完成一次 ZeroMQ 请求-响应，可以用仓库内置示例做一轮本地验证。
+
+先用 CLI 二进制训练一个示例模型：
+
+```bash
+./dist/traingluonts/traingluonts train \
+  --input examples/binary_cli_job/train_request.json \
+  --output examples/binary_cli_job/results/train_result.json \
+  --pretty
+```
+
+读取刚训练出的 predictor 路径：
+
+```bash
+model_path="$(.venv/bin/python - <<'PY'
+import json
+from pathlib import Path
+
+result = json.loads(Path("examples/binary_cli_job/results/train_result.json").read_text())
+print(result["result"]["model_path"])
+PY
+)"
+```
+
+在终端 1 启动工作流节点：
+
+```bash
+./dist/traingluonts-workflow-node/traingluonts-workflow-node \
+  --zmq-endpoint tcp://127.0.0.1:55555 \
+  --zmq-protocol REQ \
+  --model-path "$model_path" \
+  --target_name RF_FWD_PWR \
+  --timestamp_name time \
+  --freq D \
+  --num_samples 20
+```
+
+看到类似下面的输出，说明节点已经绑定端口并加载模型：
+
+```text
+bind=tcp://127.0.0.1:55555
+model_path=/path/to/examples/binary_cli_job/models/model_xxx/predictor
+freq=D
+```
+
+在终端 2 使用模拟平台客户端发送请求：
+
+```bash
+.venv/bin/python examples/workflow_node_client.py \
+  --endpoint tcp://127.0.0.1:55555 \
+  --rows 30 \
+  --freq-ms 86400000 \
+  --timeout-ms 120000
+```
+
+预期响应中 `code` 为 `200`，`message` 为 `success`，并且 `data` 数组长度等于模型训练请求里的 `prediction_length`。示例模型默认 `prediction_length=7`，所以会返回 7 条预测结果：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "item_id": "series_0",
+      "step": 1,
+      "predict_value": 12.3
+    }
+  ]
+}
+```
+
+验证完成后，在终端 1 按 `Ctrl+C` 停止节点。
+
+说明：
+
+- 上面的 `--freq D` 必须和示例模型训练请求中的 `freq` 一致。
+- `workflow_node_client.py` 默认生成 `time` 和 `RF_FWD_PWR` 字段，所以节点启动参数使用 `--timestamp_name time` 和 `--target_name RF_FWD_PWR`。
+- 如果测试 onefile 产物，把启动命令中的 `./dist/traingluonts-workflow-node/traingluonts-workflow-node` 替换为 `./dist/traingluonts-workflow-node`。
+
 ## 工作流节点二进制使用方式
 
 工作流节点二进制面向平台“AI数据分析二进制”自定义节点使用。它不是一次性命令行推理工具，而是被平台启动后常驻运行，通过 ZeroMQ 接收上游数据并返回预测结果。
