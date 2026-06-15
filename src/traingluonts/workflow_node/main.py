@@ -7,6 +7,7 @@ import json
 import sys
 from argparse import Namespace
 from collections.abc import Sequence
+from multiprocessing import freeze_support
 
 import zmq
 
@@ -128,4 +129,5 @@ def _positive_int(value: str) -> int:
 
 
 if __name__ == "__main__":
+    freeze_support()
     raise SystemExit(main())

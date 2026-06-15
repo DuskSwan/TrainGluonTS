@@ -7,6 +7,7 @@ import sys
 import traceback
 from argparse import Namespace
 from collections.abc import Sequence
+from multiprocessing import freeze_support
 
 from traingluonts.cli.commands import run_predict, run_train, run_version
 from traingluonts.cli.io import CliInputError, write_response
@@ -121,5 +122,5 @@ def _emit_error(
 
 
 if __name__ == "__main__":
+    freeze_support()
     raise SystemExit(main())
-
