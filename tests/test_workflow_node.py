@@ -136,6 +136,7 @@ class WorkflowNodeTests(unittest.TestCase):
         )
 
         self.assertEqual(response["code"], 200)
+        self.assertEqual(response["type"], "timeseries")
         self.assertEqual(
             response["data"],
             [
@@ -160,6 +161,7 @@ class WorkflowNodeTests(unittest.TestCase):
         response = service.process_text('{"data": [{"other": 1}]}')
 
         self.assertEqual(response["code"], 500)
+        self.assertEqual(response["type"], "timeseries")
         self.assertIn("missing target field: value", response["message"])
 
     def test_config_rejects_non_req_protocol(self) -> None:
@@ -253,8 +255,10 @@ class WorkflowNodeTests(unittest.TestCase):
 
         self.assertFalse(server.is_alive())
         self.assertEqual(success["code"], 200)
+        self.assertEqual(success["type"], "timeseries")
         self.assertEqual(success["data"][0]["predict_value"], 3.0)
         self.assertEqual(error["code"], 500)
+        self.assertEqual(error["type"], "timeseries")
 
 
 class FakeForecast:

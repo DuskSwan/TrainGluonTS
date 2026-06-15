@@ -846,6 +846,7 @@ AI数据分析二进制
 {
   "code": 200,
   "message": "success",
+  "type": "timeseries",
   "data": [
     {
       "item_id": "series_0",
@@ -867,6 +868,7 @@ AI数据分析二进制
 | --- | --- |
 | `code` | 成功时为 `200` |
 | `message` | 成功时为 `success` |
+| `type` | 当前固定为 `timeseries`，表示时间序列推理结果 |
 | `data` | 预测结果数组 |
 | `item_id` | 序列 ID；未配置 `item_id_name` 时为 `series_0` |
 | `step` | 第几个预测步，从 `1` 开始 |
@@ -896,6 +898,7 @@ AI数据分析二进制
 {
   "code": 500,
   "message": "missing target field: RF_FWD_PWR",
+  "type": "timeseries",
   "data": {}
 }
 ```
@@ -904,6 +907,7 @@ AI数据分析二进制
 
 - `code == 200`：读取 `data`。
 - `code != 200`：展示或记录 `message`。
+- `type == "timeseries"`：按时间序列预测结果处理。
 - 不要依赖 HTTP 状态码；这是 ZeroMQ JSON 协议。
 
 启动期错误，例如模型路径不存在、协议不是 REQ、端口绑定失败，会导致进程非 0 退出，平台应按外部进程启动失败处理。

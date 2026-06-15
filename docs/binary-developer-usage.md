@@ -15,7 +15,7 @@
    - 程序名：`traingluonts-workflow-node`
    - 通信方式：ZeroMQ 非 Multipart，平台使用 REQ，节点使用 REP
    - 能力范围：只做推理，不提供训练接口
-   - 输出格式：返回 `code/message/data`，`data` 中只包含预测结果
+   - 输出格式：返回 `code/message/type/data`，`type` 固定为 `timeseries`，`data` 中只包含预测结果
 
 二进制程序不提供 HTTP 服务，也不把训练好的模型打进程序本体。CLI 训练产生的模型仍保存在请求参数指定的本地 `artifact_root` 目录下；工作流节点运行时通过平台注入的 `--model-path` 加载已发布模型。
 
@@ -399,6 +399,7 @@ D
 {
   "code": 200,
   "message": "success",
+  "type": "timeseries",
   "data": [
     {
       "item_id": "A",
@@ -420,6 +421,7 @@ D
 {
   "code": 500,
   "message": "missing target field: RF_FWD_PWR",
+  "type": "timeseries",
   "data": {}
 }
 ```

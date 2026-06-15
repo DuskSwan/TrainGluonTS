@@ -18,6 +18,9 @@ from traingluonts.workflow_node.payloads import (
 )
 
 
+RESPONSE_TYPE = "timeseries"
+
+
 @dataclass(frozen=True)
 class WorkflowNodeConfig:
     """Startup configuration for one workflow-node process."""
@@ -162,6 +165,7 @@ def success_response(data: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "code": 200,
         "message": "success",
+        "type": RESPONSE_TYPE,
         "data": data,
     }
 
@@ -171,6 +175,7 @@ def error_response(message: str) -> dict[str, Any]:
     return {
         "code": 500,
         "message": message,
+        "type": RESPONSE_TYPE,
         "data": {},
     }
 
